@@ -10,7 +10,7 @@
     },
     "image_block_public_access": {
       "state": {
-        "@@assign": "block_new_sharing"
+        "@@assign": "block-new-sharing"
       }
     },
     "snapshot_block_public_access": {
