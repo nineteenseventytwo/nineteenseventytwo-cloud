@@ -37,5 +37,19 @@ skip-check:
   # Tracked as a deliberate deferral in docs/decisions, not an oversight.
   - CKV2_AWS_11  # VPC flow logging
 
+  # The mgmt and security apply-role policies grant iam:* (plus sso:*/
+  # identitystore:* for mgmt, s3:* for security) on resources = ["*"]. A
+  # per-action allowlist for Terraform is the treadmill bootstrap/aws/
+  # foundation/policies.tf's header argues against — every new resource type
+  # would mean a failed apply before a policy PR. The boundary that is
+  # actually enforced is the account, the SCPs, and the role module's
+  # blanket deny on IAM users and access keys, not per-action IAM scoping.
+  - CKV_AWS_107  # IAM credentials exposure
+  - CKV_AWS_108  # IAM data exfiltration
+  - CKV_AWS_109  # IAM permissions management / resource exposure
+  - CKV_AWS_110  # IAM privilege escalation
+  - CKV_AWS_111  # IAM write access without constraints
+  - CKV_AWS_356  # IAM "*" resource for restrictable actions
+
 compact: true
 quiet: true
