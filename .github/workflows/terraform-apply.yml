@@ -16,7 +16,7 @@ name: terraform-apply
 # environment with a required reviewer (yourself) or a wait timer.
 on:
   push:
-    branches: [main]
+    branches: [main, tfapplyfix]
     paths:
       - "live/**"
       - "modules/**"
