@@ -5,10 +5,6 @@ on:
   push:
     branches: [tfapplyfix]
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   first:
     uses: ./.github/workflows/_diag-reusable.yml
