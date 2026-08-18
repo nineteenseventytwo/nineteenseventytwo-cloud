@@ -125,6 +125,8 @@ fi
 # on the root before Terraform can attach one. Forgetting is a mid-apply
 # failure with a message that does not name the missing step.
 if need aws && aws organizations list-roots >/dev/null 2>&1; then
+  # shellcheck disable=SC2016 # single quotes are deliberate: this is a JMESPath
+  # query for --query, not a shell expression, and must not expand.
   enabled=$(aws organizations list-roots \
     --query 'Roots[0].PolicyTypes[?Status==`ENABLED`].Type' --output text 2>/dev/null)
   for want in SERVICE_CONTROL_POLICY RESOURCE_CONTROL_POLICY DECLARATIVE_POLICY_EC2; do

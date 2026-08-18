@@ -1,0 +1,8 @@
+# Every ignore here needs a reason — see .checkov.yaml's header for why.
+
+# The security-alerts SNS topics (root sign-in + break-glass alerts, see
+# live/aws/org-management/alarms.tf) use the AWS-managed key, not a dedicated
+# CMK. They carry only "someone signed in as root/break-glass" notifications —
+# operational alerts, not sensitive data — and a per-topic CMK is an ongoing
+# key policy and rotation to maintain for a low-value target.
+AVD-AWS-0136

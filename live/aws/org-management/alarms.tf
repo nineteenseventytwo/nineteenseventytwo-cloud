@@ -17,6 +17,12 @@ resource "aws_sns_topic" "security_alerts" {
   # SNS topics are a favourite exfiltration path: subscribe an external
   # endpoint, receive everything. The policy below is what stops that being a
   # one-API-call operation for anyone who gets in.
+  #
+  # The AWS-managed key, not a CMK: this topic only ever carries "root signed
+  # in" notifications, not anything a per-key access policy is worth writing
+  # for.
+  kms_master_key_id = "alias/aws/sns"
+
   tags = module.cfg.tags
 }
 
@@ -121,8 +127,9 @@ resource "aws_cloudwatch_event_rule" "break_glass_assumed" {
 }
 
 resource "aws_sns_topic" "security_alerts_primary" {
-  name = "${module.cfg.org.name}-security-alerts"
-  tags = module.cfg.tags
+  name              = "${module.cfg.org.name}-security-alerts"
+  kms_master_key_id = "alias/aws/sns"
+  tags              = module.cfg.tags
 }
 
 resource "aws_sns_topic_subscription" "security_alerts_primary_email" {
