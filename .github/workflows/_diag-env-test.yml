@@ -5,8 +5,26 @@ on:
   push:
     branches: [tfapplyfix]
 
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: diag-env-test
+  cancel-in-progress: false
+
 jobs:
-  probe:
+  first:
     uses: ./.github/workflows/_diag-reusable.yml
     with:
+      stack: first
+      mode: apply
+      environment: aws-prod
+
+  second:
+    needs: first
+    uses: ./.github/workflows/_diag-reusable.yml
+    with:
+      stack: second
+      mode: apply
       environment: aws-prod
