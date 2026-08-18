@@ -16,7 +16,6 @@ on:
         default: ""
 
 permissions:
-  contents: read
   id-token: write
 
 jobs:
