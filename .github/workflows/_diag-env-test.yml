@@ -2,7 +2,8 @@
 name: diag-env-test
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [tfapplyfix]
 
 jobs:
   probe:
