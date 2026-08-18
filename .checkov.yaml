@@ -70,5 +70,16 @@ skip-check:
   - CKV_AWS_356  # IAM "*" resource for restrictable actions
   - CKV2_AWS_40  # IAM policy allows full IAM privileges
 
+  # _terraform.yml (the reusable plan/apply workflow) has no top-level
+  # permissions block, on purpose: a reusable workflow that declares its own
+  # permissions *and* binds a job to a real environment fails at startup —
+  # see the comment in that file. The repo's default token permissions are
+  # read-only (Settings > Actions > General), and this workflow only ever
+  # runs with whatever contents/id-token/pull-requests scopes its two
+  # callers grant, not write-all. It is the only workflow in this repo
+  # without an explicit block — every other one has it, so this check still
+  # catches a real omission anywhere else.
+  - CKV2_GHA_1   # GitHub Actions top-level permissions not write-all
+
 compact: true
 quiet: true

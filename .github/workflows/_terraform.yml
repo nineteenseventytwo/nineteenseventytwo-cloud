@@ -22,7 +22,7 @@
 # repo's default token permissions are read-only (Settings > Actions >
 # General), and this workflow only ever runs with whatever contents/
 # id-token/pull-requests scopes its two callers grant, not write-all.
-on: # checkov:skip=CKV2_GHA_1:no permissions block on purpose, see comment above
+on:
   workflow_call:
     inputs:
       stack:
