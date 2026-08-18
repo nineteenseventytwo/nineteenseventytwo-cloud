@@ -1,0 +1,25 @@
+---
+extends: default
+
+ignore: |
+  build/
+  .terraform/
+
+rules:
+  # GitHub workflow expressions routinely exceed 80 columns.
+  line-length:
+    max: 160
+    level: warning
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  comments:
+    min-spaces-from-content: 1
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true

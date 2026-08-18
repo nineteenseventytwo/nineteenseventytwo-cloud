@@ -1,0 +1,147 @@
+---
+# Reusable: plan or apply exactly one stack, in exactly one account.
+#
+# Called by terraform-plan.yml (every stack, in parallel, on a pull request)
+# and terraform-apply.yml (every stack, in dependency order, on main).
+#
+# Two things make this safe to point at an AWS organisation:
+#
+#   1. The runner is GitHub-hosted, not the lab's self-hosted one. A runner in
+#      the homelab holding a role that can modify the org is a blast radius
+#      nobody wants, and it would make cloud IaC depend on homelab uptime. This
+#      is the one workload that stays off those runners.
+#      See docs/decisions/ADR-0003-github-hosted-runners.md.
+#
+#   2. There is no secret. The job exchanges its GitHub OIDC token for an hour
+#      of AWS access to one role in one account. The plan role is read-only and
+#      trusts `pull_request`; the apply role trusts only
+#      `environment:aws-prod`, which GitHub will not issue until the
+#      environment's protection rules have passed.
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        description: "Stack name, as it appears in live/aws/stacks.json"
+        required: true
+        type: string
+      mode:
+        description: "plan or apply"
+        required: true
+        type: string
+      environment:
+        description: "GitHub environment to bind the job to. Empty for plan jobs."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  terraform:
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # NOTE: these actions are pinned to major tags, not commit SHAs. Before
+      # this repo manages anything real, replace each `@vN` with the commit SHA
+      # it currently resolves to, keeping the tag in a trailing comment:
+      #
+      #   for a in actions/checkout@v7 hashicorp/setup-terraform@v4 \
+      #            aws-actions/configure-aws-credentials@v6; do
+      #     gh api "repos/${a%@*}/commits/${a#*@}" --jq "\"$a -> \(.sha)\""
+      #   done
+      #
+      # A major tag is mutable — the maintainer moves it on every release, and
+      # anyone who compromises the repo can move it too. In a job holding a
+      # role that can modify an AWS organisation, that is the worst version of
+      # this problem. Dependabot (.github/dependabot.yml) keeps the SHAs fresh
+      # once they are in place.
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.8"
+          terraform_wrapper: false
+
+      # config/aws.json is the single source of truth, read here with jq
+      # exactly as Terraform reads it with jsondecode. Neither side gets to
+      # drift, because there is only one file.
+      - name: Resolve the account and role for this stack
+        id: target
+        run: |
+          set -euo pipefail
+          account=$(jq -r --arg s "${{ inputs.stack }}" \
+            '.[] | select(.name == $s) | .account' live/aws/stacks.json)
+          test -n "$account" || { echo "unknown stack: ${{ inputs.stack }}"; exit 1; }
+
+          account_id=$(jq -r --arg a "$account" '.accounts[$a].id' config/aws.json)
+          test -n "$account_id" && test "$account_id" != "null" || {
+            echo "config/aws.json has no ID for account '$account' — run make config-sync"; exit 1; }
+
+          if [ "${{ inputs.mode }}" = "apply" ]; then
+            role=$(jq -r '.roles.apply' config/aws.json)
+          else
+            role=$(jq -r '.roles.plan' config/aws.json)
+          fi
+
+          region=$(jq -r '.regions.primary' config/aws.json)
+
+          {
+            echo "account=$account"
+            echo "role_arn=arn:aws:iam::${account_id}:role/ci/${role}"
+            echo "region=$region"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ steps.target.outputs.role_arn }}
+          aws-region: ${{ steps.target.outputs.region }}
+          # Names the session after the run, so CloudTrail shows which workflow
+          # made a change rather than a generic "GitHubActions".
+          role-session-name: gha-${{ inputs.mode }}-${{ inputs.stack }}-${{ github.run_id }}
+
+      - name: Confirm which identity we are actually using
+        run: aws sts get-caller-identity
+
+      # `make plan` handles init, the backend config and the plan file. CI and
+      # a laptop run the identical command, so a green PR means something
+      # reproducible.
+      - name: Plan
+        id: plan
+        run: make plan STACK=${{ inputs.stack }}
+
+      - name: Render the plan for humans
+        if: inputs.mode == 'plan'
+        run: |
+          terraform -chdir=live/aws/${{ inputs.stack }} show -no-color \
+            "$PWD/build/${{ inputs.stack }}.tfplan" > "build/${{ inputs.stack }}.txt"
+
+      # A plan nobody reads is a rubber stamp. Posting it on the PR is what
+      # makes "approve the environment" an informed action rather than a click.
+      - name: Post the plan on the pull request
+        if: inputs.mode == 'plan' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### \`${{ inputs.stack }}\` — plan against \`${{ steps.target.outputs.account }}\`"
+            echo
+            echo '<details><summary>terraform plan</summary>'
+            echo
+            echo '```terraform'
+            # GitHub rejects comment bodies over 65536 characters; a plan that
+            # long is a signal in itself, and the full output is in the job log.
+            head -c 60000 "build/${{ inputs.stack }}.txt"
+            echo '```'
+            echo
+            echo '</details>'
+          } > build/comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file build/comment.md
+
+      - name: Apply
+        if: inputs.mode == 'apply'
+        run: make apply STACK=${{ inputs.stack }}

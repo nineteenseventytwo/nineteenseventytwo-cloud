@@ -1,0 +1,52 @@
+---
+name: terraform-plan
+
+# Every stack, every pull request, in parallel. Five read-only plans cost
+# seconds and remove the question "did this PR touch anything else" —
+# path-filtering the matrix would be faster and would occasionally be wrong,
+# because a change to config/aws.json or a shared module reaches every stack.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: terraform-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  org-management:
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: org-management
+      mode: plan
+
+  security:
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: security
+      mode: plan
+
+  shared:
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: shared
+      mode: plan
+
+  platform-prod:
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: platform-prod
+      mode: plan
+
+  sandbox:
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: sandbox
+      mode: plan

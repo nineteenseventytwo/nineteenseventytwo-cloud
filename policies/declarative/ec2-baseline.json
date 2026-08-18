@@ -1,0 +1,22 @@
+{
+  "ec2_attributes": {
+    "instance_metadata_defaults": {
+      "http_tokens": {
+        "@@assign": "required"
+      },
+      "http_put_response_hop_limit": {
+        "@@assign": "2"
+      }
+    },
+    "image_block_public_access": {
+      "state": {
+        "@@assign": "block_new_sharing"
+      }
+    },
+    "snapshot_block_public_access": {
+      "state": {
+        "@@assign": "block-all-sharing"
+      }
+    }
+  }
+}

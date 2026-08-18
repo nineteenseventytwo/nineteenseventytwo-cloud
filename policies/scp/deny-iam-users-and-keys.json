@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyIAMUsersAndLongLivedCredentials",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser",
+        "iam:CreateAccessKey",
+        "iam:UpdateAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:UpdateLoginProfile",
+        "iam:CreateServiceSpecificCredential",
+        "iam:ResetServiceSpecificCredential",
+        "iam:UploadSigningCertificate",
+        "iam:UploadSSHPublicKey"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

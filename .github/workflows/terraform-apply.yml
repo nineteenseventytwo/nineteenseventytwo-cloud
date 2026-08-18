@@ -1,0 +1,77 @@
+---
+name: terraform-apply
+
+# Applies land on main, one stack at a time, in dependency order.
+#
+# The order is not cosmetic. org-management registers the delegated
+# administrators that security's GuardDuty and Access Analyzer configuration
+# depends on, and platform-prod's Prowler role points at a bucket security
+# creates. `needs:` is what makes that ordering a property of the pipeline
+# rather than a sentence in a README.
+#
+# Every job binds to the `aws-prod` environment. That is the control: the
+# apply roles trust `repo:...:environment:aws-prod` and nothing else, so a
+# commit reaching main is not sufficient to get write credentials — the job
+# must also have passed the environment's protection rules. Configure that
+# environment with a required reviewer (yourself) or a wait timer.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "live/**"
+      - "modules/**"
+      - "policies/**"
+      - "config/aws.json"
+      - ".github/workflows/terraform-apply.yml"
+      - ".github/workflows/_terraform.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# Never two applies at once, and never cancel one halfway. A cancelled apply
+# leaves state and reality disagreeing, which is a worse position than a queue.
+concurrency:
+  group: terraform-apply
+  cancel-in-progress: false
+
+jobs:
+  org-management:
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: org-management
+      mode: apply
+      environment: aws-prod
+
+  security:
+    needs: org-management
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: security
+      mode: apply
+      environment: aws-prod
+
+  shared:
+    needs: security
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: shared
+      mode: apply
+      environment: aws-prod
+
+  platform-prod:
+    needs: shared
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: platform-prod
+      mode: apply
+      environment: aws-prod
+
+  sandbox:
+    needs: platform-prod
+    uses: ./.github/workflows/_terraform.yml
+    with:
+      stack: sandbox
+      mode: apply
+      environment: aws-prod

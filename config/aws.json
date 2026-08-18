@@ -1,0 +1,108 @@
+{
+  "_comment": [
+    "Single source of truth for anything both Terraform and CI need to know.",
+    "Terraform reads it through modules/aws-config; the workflows read it with",
+    "jq. Keeping one file means a new account or a changed region is one edit,",
+    "not a grep across five stacks and three workflows.",
+    "",
+    "Account IDs are committed deliberately. They are not credentials — every",
+    "role ARN in every trust policy contains one — and CI needs them before it",
+    "has assumed anything, so a secret would be circular. The controls that",
+    "matter are the OIDC trust conditions and the SCPs, not obscurity. See",
+    "docs/decisions/ADR-0004-committed-account-ids.md.",
+    "",
+    "IDs are empty until bootstrap has run. Fill them with:",
+    "  make config-sync",
+    "which writes them from the bootstrap stack's outputs.",
+    "",
+    "contact.phone is empty on purpose. Alternate contacts are where AWS sends",
+    "abuse reports and compromise notices; the API requires a phone number, and",
+    "a placeholder there looks populated in an audit while reaching nobody in an",
+    "incident. Fill it in and re-apply, or leave the contacts unset knowingly."
+  ],
+  "org": {
+    "name": "nineteenseventytwo",
+    "domain": "eightbitsaxlounge.com",
+    "id": "o-gpv61aczar"
+  },
+  "regions": {
+    "primary": "eu-west-2",
+    "global": "us-east-1",
+    "allowed": [
+      "eu-west-2",
+      "us-east-1"
+    ]
+  },
+  "github": {
+    "org": "nineteenseventytwo",
+    "repo": "nineteenseventytwo-cloud",
+    "environment": "aws-prod"
+  },
+  "state": {
+    "bucket": "nineteenseventytwo-tfstate-617464676730",
+    "key_prefix": "live/aws",
+    "kms_alias": "alias/nineteenseventytwo-tfstate"
+  },
+  "roles": {
+    "plan": "gha-tf-plan",
+    "apply": "gha-tf-apply"
+  },
+  "identity_center": {
+    "admin_username": "mchellmer",
+    "human_session_hours": 1,
+    "audit_session_hours": 4
+  },
+  "contact": {
+    "name": "",
+    "phone": "",
+    "security_email": "aws-security@eightbitsaxlounge.com",
+    "operations_email": "aws-ops@eightbitsaxlounge.com",
+    "billing_email": "aws-billing@eightbitsaxlounge.com"
+  },
+  "budget": {
+    "monthly_limit": 20,
+    "alert_thresholds": [
+      25,
+      50,
+      100
+    ],
+    "sandbox_monthly_limit": 5,
+    "notification_email": "aws-billing@eightbitsaxlounge.com"
+  },
+  "accounts": {
+    "mgmt": {
+      "name": "nineteenseventytwo-mgmt",
+      "email": "aws-mgmt@eightbitsaxlounge.com",
+      "id": "805982517487",
+      "ou": null
+    },
+    "security": {
+      "name": "nineteenseventytwo-security",
+      "email": "aws-security@eightbitsaxlounge.com",
+      "id": "517148962038",
+      "ou": "Security"
+    },
+    "shared": {
+      "name": "nineteenseventytwo-shared",
+      "email": "aws-shared@eightbitsaxlounge.com",
+      "id": "617464676730",
+      "ou": "Infrastructure"
+    },
+    "platform-prod": {
+      "name": "nineteenseventytwo-platform-prod",
+      "email": "aws-platform@eightbitsaxlounge.com",
+      "id": "972034964468",
+      "ou": "Infrastructure"
+    },
+    "sandbox": {
+      "name": "nineteenseventytwo-sandbox",
+      "email": "aws-sandbox@eightbitsaxlounge.com",
+      "id": "671980843447",
+      "ou": "Sandbox"
+    }
+  },
+  "cluster": {
+    "oidc_issuer": "https://oidc.eightbitsaxlounge.com",
+    "audience": "sts.amazonaws.com"
+  }
+}

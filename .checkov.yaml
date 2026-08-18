@@ -1,0 +1,41 @@
+---
+# Checkov runs on every PR. It is advisory-with-teeth: hard-fail on the checks
+# that map to a control this landing zone actually claims to enforce, and skip
+# the ones that are wrong for a five-account homelab, each with a reason.
+#
+# A skip with no reason is a finding you have decided not to look at. Every
+# entry below says why.
+
+framework:
+  - terraform
+  - github_actions
+
+directory:
+  - .
+
+skip-check:
+  # Access logging on the state and log buckets would need a further bucket to
+  # log into, which would itself need logging. CloudTrail data events cover the
+  # same question for the buckets that matter and are already centralised.
+  - CKV_AWS_18   # S3 access logging
+  - CKV2_AWS_62  # S3 event notifications
+
+  # Cross-region replication doubles storage cost for a lab whose stated
+  # recovery posture is "rebuild from git". Versioning + Object Lock is the
+  # control that is actually claimed.
+  - CKV_AWS_144  # S3 cross-region replication
+
+  # The JWKS bucket is public *by design* — an OIDC discovery document is
+  # meant to be world-readable, and only public signing keys are in it. See
+  # docs/06-federation.md. Public access blocks are on for every other bucket.
+  - CKV_AWS_20   # S3 bucket should not be public-read
+  - CKV_AWS_54   # S3 block public policy
+  - CKV_AWS_55   # S3 ignore public ACLs
+  - CKV_AWS_56   # S3 restrict public buckets
+
+  # VPC flow logs bill per GB ingested and the VPC is empty until Phase 5.
+  # Tracked as a deliberate deferral in docs/decisions, not an oversight.
+  - CKV2_AWS_11  # VPC flow logging
+
+compact: true
+quiet: true

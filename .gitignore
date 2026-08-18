@@ -1,0 +1,41 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.json
+
+# Bootstrap stacks' backend.tf is moved aside for the first, backend-less
+# apply and moved back by `make bootstrap-migrate-state` — see the Makefile's
+# bootstrap_init macro. Never committed under this name.
+backend.tf.disabled
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# .tfvars are NOT ignored: config/aws.json is the only variable source and it is
+# committed on purpose (ADR-0004). If you find yourself wanting a local
+# terraform.tfvars, that is a signal the config file needs the value instead.
+
+# Rendered plans, outputs, scratch
+build/
+
+# Never commit these in the clear
+*.key
+*.pem
+!bootstrap/ssh/*.pub
+.env
+.envrc
+credentials
+
+# Scan artefacts
+*.sarif
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

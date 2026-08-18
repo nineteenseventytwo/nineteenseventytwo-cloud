@@ -1,0 +1,103 @@
+---
+name: lint
+
+# No AWS credentials anywhere in this file, deliberately. Everything here reads
+# files: format, syntax, provider schemas, policy JSON, static analysis. That
+# is what makes it safe to run on a pull request from a fork, and it is the
+# gate that catches most mistakes before a plan is ever attempted.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.8"
+          terraform_wrapper: false
+
+      - name: Formatting is canonical
+        run: make lint-fmt
+
+      # `terraform validate` needs a provider schema, so it needs init — but
+      # -backend=false means no bucket, no credentials, no network beyond the
+      # provider registry.
+      - name: Every stack and module validates
+        run: make lint-validate
+
+  tflint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: latest
+      - run: make lint-tflint
+
+  policies:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # A missing comma in an SCP is otherwise discovered by a failed apply
+      # against a live organisation, which is a slow way to find a typo.
+      - name: Every policy document is valid JSON
+        run: make lint-policies
+      - name: config/aws.json is valid JSON
+        run: jq -e . config/aws.json > /dev/null
+
+  yaml-and-shell:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.14"}
+      - run: pip install yamllint
+      - run: make lint-yaml
+      - name: shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          make lint-shell
+
+  security:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # Checkov's skips are configured in .checkov.yaml, each with a written
+      # reason. It is not soft-failed here: an IaC repo whose IaC scanner is
+      # advisory is an IaC repo with no IaC scanner.
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+
+      - name: Trivy - secrets and misconfiguration
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: secret,misconfig
+          format: sarif
+          output: trivy.sarif
+          severity: HIGH,CRITICAL
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: .

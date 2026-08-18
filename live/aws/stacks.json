@@ -1,0 +1,37 @@
+[
+  {
+    "name": "org-management",
+    "dir": "live/aws/org-management",
+    "account": "mgmt",
+    "order": 1,
+    "description": "Organizations, OUs, SCPs, RCPs, declarative policies, IAM Identity Center, org CloudTrail, budgets"
+  },
+  {
+    "name": "security",
+    "dir": "live/aws/security",
+    "account": "security",
+    "order": 2,
+    "description": "CloudTrail log bucket with Object Lock, GuardDuty, IAM Access Analyzer, Prowler results"
+  },
+  {
+    "name": "shared",
+    "dir": "live/aws/shared",
+    "account": "shared",
+    "order": 3,
+    "description": "Terraform state (owned by bootstrap), optional ECR, shared account baseline"
+  },
+  {
+    "name": "platform-prod",
+    "dir": "live/aws/platform-prod",
+    "account": "platform-prod",
+    "order": 4,
+    "description": "KMS CMKs, JWKS bucket, Longhorn backup bucket, cluster OIDC provider and IRSA roles, VPC"
+  },
+  {
+    "name": "sandbox",
+    "dir": "live/aws/sandbox",
+    "account": "sandbox",
+    "order": 5,
+    "description": "Deliberately breakable. Tighter cost guardrails, nothing that must survive"
+  }
+]

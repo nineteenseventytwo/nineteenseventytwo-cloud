@@ -1,0 +1,53 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyDestructiveSecurityActions",
+      "Effect": "Deny",
+      "Action": [
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:DeleteEventDataStore",
+        "guardduty:DeleteDetector",
+        "guardduty:DeleteMembers",
+        "guardduty:DisassociateFromMasterAccount",
+        "guardduty:DisassociateMembers",
+        "guardduty:StopMonitoringMembers",
+        "access-analyzer:DeleteAnalyzer",
+        "config:DeleteConfigurationRecorder",
+        "config:DeleteDeliveryChannel",
+        "config:StopConfigurationRecorder",
+        "securityhub:DisableSecurityHub",
+        "kms:ScheduleKeyDeletion",
+        "kms:DisableKey",
+        "kms:DisableKeyRotation",
+        "s3:DeleteBucket",
+        "s3:PutBucketVersioning"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenySecurityConfigChangesOutsideIaC",
+      "Effect": "Deny",
+      "Action": [
+        "cloudtrail:UpdateTrail",
+        "cloudtrail:PutEventSelectors",
+        "cloudtrail:UpdateEventDataStore",
+        "guardduty:UpdateDetector",
+        "guardduty:CreateFilter",
+        "guardduty:UpdateFilter",
+        "guardduty:DeletePublishingDestination",
+        "access-analyzer:UpdateAnalyzer",
+        "kms:PutKeyPolicy",
+        "s3:PutObjectLockConfiguration",
+        "s3:PutBucketObjectLockConfiguration"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": ${jsonencode(iac_role_arns)}
+        }
+      }
+    }
+  ]
+}

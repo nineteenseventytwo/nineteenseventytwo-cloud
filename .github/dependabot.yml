@@ -1,0 +1,35 @@
+---
+# Actions get pinned to commit SHAs (see the note in _terraform.yml). A pinned
+# SHA is only safe if something tells you when it is stale, which is what this
+# is for — Dependabot rewrites the SHA and puts the new tag in the comment.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: terraform
+    directories:
+      - "/bootstrap/aws/accounts"
+      - "/bootstrap/aws/foundation"
+      - "/live/aws/org-management"
+      - "/live/aws/security"
+      - "/live/aws/shared"
+      - "/live/aws/platform-prod"
+      - "/live/aws/sandbox"
+      - "/modules/aws-account-baseline"
+      - "/modules/aws-account-ci"
+      - "/modules/aws-cluster-oidc-role"
+      - "/modules/aws-github-oidc-provider"
+      - "/modules/aws-github-oidc-role"
+      - "/modules/aws-org-policy"
+      - "/modules/aws-tf-backend"
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps"

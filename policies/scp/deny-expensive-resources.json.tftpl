@@ -1,0 +1,79 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyStandingNetworkCharges",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:CreateNatGateway",
+        "ec2:CreateTransitGateway",
+        "ec2:CreateVpnConnection",
+        "ec2:CreateVpnGateway",
+        "ec2:CreateClientVpnEndpoint",
+        "ec2:AllocateAddress",
+        "directconnect:CreateConnection",
+        "directconnect:CreateDirectConnectGateway",
+        "globalaccelerator:CreateAccelerator",
+        "elasticloadbalancing:CreateLoadBalancer"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyLargeInstances",
+      "Effect": "Deny",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "StringNotEquals": {
+          "ec2:InstanceType": ${jsonencode(allowed_instance_types)}
+        }
+      }
+    },
+    {
+      "Sid": "DenyManagedServicesWithFourFigureAnnualCost",
+      "Effect": "Deny",
+      "Action": [
+        "rds:CreateDBInstance",
+        "rds:CreateDBCluster",
+        "redshift:CreateCluster",
+        "redshift-serverless:CreateWorkgroup",
+        "elasticache:CreateCacheCluster",
+        "elasticache:CreateReplicationGroup",
+        "es:CreateDomain",
+        "es:CreateElasticsearchDomain",
+        "opensearch:CreateDomain",
+        "eks:CreateCluster",
+        "fsx:CreateFileSystem",
+        "efs:CreateFileSystem",
+        "workspaces:CreateWorkspaces",
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:CreateEndpoint",
+        "sagemaker:CreateDomain",
+        "bedrock:CreateProvisionedModelThroughput",
+        "kafka:CreateCluster",
+        "kafka:CreateClusterV2",
+        "mq:CreateBroker",
+        "network-firewall:CreateFirewall"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyLongTermCommitments",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:PurchaseReservedInstancesOffering",
+        "ec2:PurchaseHostReservation",
+        "ec2:PurchaseCapacityBlock",
+        "ec2:ModifyReservedInstances",
+        "rds:PurchaseReservedDBInstancesOffering",
+        "redshift:PurchaseReservedNodeOffering",
+        "elasticache:PurchaseReservedCacheNodesOffering",
+        "savingsplans:CreateSavingsPlan",
+        "route53domains:RegisterDomain",
+        "route53domains:TransferDomain",
+        "route53domains:RenewDomain"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

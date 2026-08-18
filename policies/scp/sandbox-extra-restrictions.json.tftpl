@@ -1,0 +1,48 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SandboxDenyAnythingWithAMonthlyFloor",
+      "Effect": "Deny",
+      "Action": [
+        "kms:CreateKey",
+        "kms:CreateCustomKeyStore",
+        "secretsmanager:CreateSecret",
+        "cloudwatch:PutDashboard",
+        "logs:CreateLogGroup",
+        "ec2:CreateVpcEndpoint",
+        "ec2:CreateVolume",
+        "s3:PutObjectLockConfiguration",
+        "s3:PutBucketObjectLockConfiguration",
+        "backup:CreateBackupVault"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SandboxDenyInstancesLargerThanTheSmallest",
+      "Effect": "Deny",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "StringNotEquals": {
+          "ec2:InstanceType": ${jsonencode(sandbox_instance_types)}
+        }
+      }
+    },
+    {
+      "Sid": "SandboxIsNotWhereProductionIdentityLives",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:CreateSAMLProvider",
+        "rolesanywhere:CreateTrustAnchor"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": ${jsonencode(iac_role_arns)}
+        }
+      }
+    }
+  ]
+}
