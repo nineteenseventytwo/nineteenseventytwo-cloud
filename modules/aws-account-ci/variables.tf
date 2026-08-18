@@ -8,8 +8,18 @@ variable "github_org" {
   type        = string
 }
 
+variable "github_org_id" {
+  description = "GitHub organisation's immutable numeric ID. GitHub's OIDC sub claim is repo:org@org_id/repo@repo_id:..., not the plain slugs."
+  type        = string
+}
+
 variable "github_repo" {
   description = "Repository name. Part of the `sub` claim, so only this repo can assume the roles."
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "Repository's immutable numeric ID. Same purpose as github_org_id."
   type        = string
 }
 

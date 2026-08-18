@@ -32,24 +32,43 @@ skip-check:
   - CKV_AWS_54   # S3 block public policy
   - CKV_AWS_55   # S3 ignore public ACLs
   - CKV_AWS_56   # S3 restrict public buckets
+  - CKV2_AWS_6   # S3 bucket should have a public access block (the JWKS one deliberately does not fully block)
 
   # VPC flow logs bill per GB ingested and the VPC is empty until Phase 5.
   # Tracked as a deliberate deferral in docs/decisions, not an oversight.
   - CKV2_AWS_11  # VPC flow logging
 
-  # The mgmt and security apply-role policies grant iam:* (plus sso:*/
-  # identitystore:* for mgmt, s3:* for security) on resources = ["*"]. A
-  # per-action allowlist for Terraform is the treadmill bootstrap/aws/
-  # foundation/policies.tf's header argues against — every new resource type
-  # would mean a failed apply before a policy PR. The boundary that is
-  # actually enforced is the account, the SCPs, and the role module's
-  # blanket deny on IAM users and access keys, not per-action IAM scoping.
+  # CloudTrail already has a home-grown alerting path: EventBridge rules for
+  # root sign-in and BreakGlassAdmin assumption, straight to the
+  # security-alerts SNS topic (see org-management/alarms.tf). Wiring the
+  # *trail itself* to an SNS topic and a CloudWatch Logs group would be a
+  # second, overlapping notification path for a one-person estate. Deferred
+  # like VPC flow logging, not an oversight.
+  - CKV_AWS_252  # CloudTrail should define an SNS topic
+  - CKV2_AWS_10  # CloudTrail integrated with CloudWatch Logs
+
+  # PlatformAdmin (org-management/identity-center.tf) is deliberately
+  # AdministratorAccess: Terraform-adjacent member-account work needs breadth,
+  # and the actual boundary is the permission set's own inline deny (no IAM
+  # users or access keys, no Organizations changes) plus the SCPs — not the
+  # managed-policy name. See the comment above aws_ssoadmin_permission_set.platform_admin.
+  - CKV_AWS_274  # Disallow AdministratorAccess
+
+  # Every apply-role policy (mgmt, security, shared, platform-prod) grants
+  # iam:* (plus sso:*/identitystore:* for mgmt, s3:* for security/shared/
+  # platform-prod) on resources = ["*"]. A per-action allowlist for Terraform
+  # is the treadmill bootstrap/aws/foundation/policies.tf's header argues
+  # against — every new resource type would mean a failed apply before a
+  # policy PR. The boundary that is actually enforced is the account, the
+  # SCPs, and the role module's blanket deny on IAM users and access keys,
+  # not per-action IAM scoping.
   - CKV_AWS_107  # IAM credentials exposure
   - CKV_AWS_108  # IAM data exfiltration
   - CKV_AWS_109  # IAM permissions management / resource exposure
   - CKV_AWS_110  # IAM privilege escalation
   - CKV_AWS_111  # IAM write access without constraints
   - CKV_AWS_356  # IAM "*" resource for restrictable actions
+  - CKV2_AWS_40  # IAM policy allows full IAM privileges
 
 compact: true
 quiet: true

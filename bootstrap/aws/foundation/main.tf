@@ -54,7 +54,9 @@ module "ci_mgmt" {
 
   account_key        = "mgmt"
   github_org         = module.cfg.github.org
+  github_org_id      = module.cfg.github.org_id
   github_repo        = module.cfg.github.repo
+  github_repo_id     = module.cfg.github.repo_id
   github_environment = module.cfg.github.environment
   plan_role_name     = module.cfg.roles.plan
   apply_role_name    = module.cfg.roles.apply
@@ -75,7 +77,9 @@ module "ci_security" {
 
   account_key        = "security"
   github_org         = module.cfg.github.org
+  github_org_id      = module.cfg.github.org_id
   github_repo        = module.cfg.github.repo
+  github_repo_id     = module.cfg.github.repo_id
   github_environment = module.cfg.github.environment
   plan_role_name     = module.cfg.roles.plan
   apply_role_name    = module.cfg.roles.apply
@@ -96,7 +100,9 @@ module "ci_shared" {
 
   account_key        = "shared"
   github_org         = module.cfg.github.org
+  github_org_id      = module.cfg.github.org_id
   github_repo        = module.cfg.github.repo
+  github_repo_id     = module.cfg.github.repo_id
   github_environment = module.cfg.github.environment
   plan_role_name     = module.cfg.roles.plan
   apply_role_name    = module.cfg.roles.apply
@@ -117,7 +123,9 @@ module "ci_platform_prod" {
 
   account_key        = "platform-prod"
   github_org         = module.cfg.github.org
+  github_org_id      = module.cfg.github.org_id
   github_repo        = module.cfg.github.repo
+  github_repo_id     = module.cfg.github.repo_id
   github_environment = module.cfg.github.environment
   plan_role_name     = module.cfg.roles.plan
   apply_role_name    = module.cfg.roles.apply
@@ -142,7 +150,9 @@ module "ci_sandbox" {
 
   account_key               = "sandbox"
   github_org                = module.cfg.github.org
+  github_org_id             = module.cfg.github.org_id
   github_repo               = module.cfg.github.repo
+  github_repo_id            = module.cfg.github.repo_id
   github_environment        = module.cfg.github.environment
   plan_role_name            = module.cfg.roles.plan
   apply_role_name           = module.cfg.roles.apply

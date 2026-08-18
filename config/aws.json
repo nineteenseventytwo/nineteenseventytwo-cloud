@@ -18,7 +18,15 @@
     "contact.phone is empty on purpose. Alternate contacts are where AWS sends",
     "abuse reports and compromise notices; the API requires a phone number, and",
     "a placeholder there looks populated in an audit while reaching nobody in an",
-    "incident. Fill it in and re-apply, or leave the contacts unset knowingly."
+    "incident. Fill it in and re-apply, or leave the contacts unset knowingly.",
+    "",
+    "github.org_id / github.repo_id are the immutable numeric IDs GitHub embeds",
+    "in the OIDC sub claim (repo:org@org_id/repo@repo_id:...) instead of the",
+    "plain slugs. Find them with:",
+    "  gh api repos/OWNER/REPO --jq .id",
+    "  gh api orgs/OWNER --jq .id",
+    "A trust policy built from the plain slugs silently mismatches and every",
+    "AssumeRoleWithWebIdentity call fails with AccessDenied."
   ],
   "org": {
     "name": "nineteenseventytwo",
@@ -35,7 +43,9 @@
   },
   "github": {
     "org": "nineteenseventytwo",
+    "org_id": "314148597",
     "repo": "nineteenseventytwo-cloud",
+    "repo_id": "1335676616",
     "environment": "aws-prod"
   },
   "state": {

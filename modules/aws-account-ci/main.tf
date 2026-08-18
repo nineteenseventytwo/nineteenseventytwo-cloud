@@ -27,7 +27,11 @@ terraform {
 }
 
 locals {
-  repo = "repo:${var.github_org}/${var.github_repo}"
+  # GitHub's OIDC sub claim embeds the org's and repo's immutable numeric IDs
+  # (repo:org@org_id/repo@repo_id:...), not the plain slugs — a trust policy
+  # built from slugs alone silently never matches, and every
+  # AssumeRoleWithWebIdentity call fails with AccessDenied.
+  repo = "repo:${var.github_org}@${var.github_org_id}/${var.github_repo}@${var.github_repo_id}"
 
   # Plans run on pull requests and on pushes to main (so the post-merge plan
   # that precedes an apply is a real plan, not a guess). Both are read-only.
