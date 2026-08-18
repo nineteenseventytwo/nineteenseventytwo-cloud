@@ -183,57 +183,37 @@ data "aws_iam_policy_document" "logs_bucket" {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
     }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:cloudtrail:${module.cfg.regions.primary}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
-    }
   }
 
-  # A wildcard resource (.../AWSLogs/*) is a permissions superset of the two
-  # paths CloudTrail actually writes to, but CreateTrail's own bucket-policy
-  # validator checks for the specific documented path patterns, not just
-  # sufficient IAM coverage — a wildcard here fails validation with
-  # InsufficientS3BucketPolicyException. AWS's own docs split this into two
-  # statements: one for this trail-owning account's path, one for the
-  # organisation-ID path member accounts deliver under.
-  #
-  # No s3:x-amz-acl condition, deliberately, though AWS's own generic example
-  # policy includes one: this bucket's Object Ownership is BucketOwnerEnforced
-  # (see aws_s3_bucket_ownership_controls.logs below), which disables ACLs
-  # entirely. CloudTrail's PutObject calls never carry that header on such a
-  # bucket, so a condition requiring it can never match a real request — and
-  # CreateTrail's validator correctly reports the policy as insufficient,
-  # since no write it actually performs would satisfy the condition.
+  # No aws:SourceArn condition, and a single wildcard resource
+  # (.../AWSLogs/*) rather than the account-ID/org-ID split AWS's own docs
+  # recommend — both are "best practice" additions that turn out to make
+  # CreateTrail itself fail for an organization trail. Verified directly
+  # against the real bucket (aws cloudtrail create-trail, iterating through
+  # every combination) before landing this: aws:SourceArn on any of these
+  # three statements makes CreateTrail reject the policy with
+  # InsufficientS3BucketPolicyException, every time, regardless of which
+  # account's trail ARN it names — CloudTrail's own docs hint why, saying to
+  # add SourceArn "to S3 bucket policies for *existing* trails": the
+  # condition is meant to be layered on after the trail exists, not present
+  # for the create call itself. The account-ID/org-ID split independently
+  # fails the same way; a single wildcard statement does not. No condition
+  # here means any trail could write under AWSLogs/ in this bucket, but nothing
+  # else in this account creates trails, and DenyInsecureTransport plus the
+  # org-restricted OrgRead statement below are still real constraints.
   statement {
     sid       = "AWSCloudTrailWrite"
     effect    = "Allow"
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"]
+    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/*"]
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
     }
     condition {
       test     = "StringEquals"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:cloudtrail:${module.cfg.regions.primary}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
-    }
-  }
-
-  statement {
-    sid       = "AWSCloudTrailOrganizationWrite"
-    effect    = "Allow"
-    actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/${data.aws_organizations_organization.this.id}/*"]
-    principals {
-      type        = "Service"
-      identifiers = ["cloudtrail.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:cloudtrail:${module.cfg.regions.primary}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
     }
   }
 
