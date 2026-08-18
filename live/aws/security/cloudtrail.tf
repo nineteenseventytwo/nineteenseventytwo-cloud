@@ -190,15 +190,39 @@ data "aws_iam_policy_document" "logs_bucket" {
     }
   }
 
-  # The org-trail prefix includes the organisation ID, not just the account
-  # ID — write it as the wildcard AWS documents for organisation trails, or
-  # member-account deliveries are silently denied and you notice weeks later
-  # when a member account's events are missing.
+  # A wildcard resource (.../AWSLogs/*) is a permissions superset of the two
+  # paths CloudTrail actually writes to, but CreateTrail's own bucket-policy
+  # validator checks for the specific documented path patterns, not just
+  # sufficient IAM coverage — a wildcard here fails validation with
+  # InsufficientS3BucketPolicyException. AWS's own docs split this into two
+  # statements: one for this trail-owning account's path, one for the
+  # organisation-ID path member accounts deliver under.
   statement {
     sid       = "AWSCloudTrailWrite"
     effect    = "Allow"
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/*"]
+    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"]
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:cloudtrail:${module.cfg.regions.primary}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
+    }
+  }
+
+  statement {
+    sid       = "AWSCloudTrailOrganizationWrite"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.logs.arn}/AWSLogs/${data.aws_organizations_organization.this.id}/*"]
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
