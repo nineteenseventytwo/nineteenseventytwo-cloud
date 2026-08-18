@@ -1,0 +1,17 @@
+---
+name: diag-reusable
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+    steps:
+      - run: echo "reached the job"

@@ -7,7 +7,6 @@ on:
 
 jobs:
   probe:
-    runs-on: ubuntu-24.04
-    environment: aws-prod
-    steps:
-      - run: echo "reached the job"
+    uses: ./.github/workflows/_diag-reusable.yml
+    with:
+      environment: aws-prod
