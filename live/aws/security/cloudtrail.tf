@@ -197,6 +197,14 @@ data "aws_iam_policy_document" "logs_bucket" {
   # InsufficientS3BucketPolicyException. AWS's own docs split this into two
   # statements: one for this trail-owning account's path, one for the
   # organisation-ID path member accounts deliver under.
+  #
+  # No s3:x-amz-acl condition, deliberately, though AWS's own generic example
+  # policy includes one: this bucket's Object Ownership is BucketOwnerEnforced
+  # (see aws_s3_bucket_ownership_controls.logs below), which disables ACLs
+  # entirely. CloudTrail's PutObject calls never carry that header on such a
+  # bucket, so a condition requiring it can never match a real request — and
+  # CreateTrail's validator correctly reports the policy as insufficient,
+  # since no write it actually performs would satisfy the condition.
   statement {
     sid       = "AWSCloudTrailWrite"
     effect    = "Allow"
@@ -205,11 +213,6 @@ data "aws_iam_policy_document" "logs_bucket" {
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-acl"
-      values   = ["bucket-owner-full-control"]
     }
     condition {
       test     = "StringEquals"
@@ -226,11 +229,6 @@ data "aws_iam_policy_document" "logs_bucket" {
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-acl"
-      values   = ["bucket-owner-full-control"]
     }
     condition {
       test     = "StringEquals"
