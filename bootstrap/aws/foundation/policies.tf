@@ -83,6 +83,10 @@ data "aws_iam_policy_document" "apply_security" {
       "iam:*",
       "account:*",
       "tag:*",
+      # Read-only: the org ID goes into KMS key and bucket policy conditions
+      # (cloudtrail.tf, detection.tf). Not organizations:*, which would give
+      # this account org-management's own power.
+      "organizations:DescribeOrganization",
     ]
     resources = ["*"]
   }
