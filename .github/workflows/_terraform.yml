@@ -35,10 +35,15 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: read
-  id-token: write
-  pull-requests: write
+# No `permissions:` block here, deliberately. A reusable workflow that
+# declares its own permissions *and* binds a job to a real (non-empty)
+# `environment:` fails at startup with a bare "workflow file issue" and no
+# further detail — reproduced by bisection, not documented anywhere obvious.
+# Empty environment (the plan calls) is unaffected, which is why this only
+# ever broke terraform-apply. Every permission this workflow's steps need
+# (contents: read, id-token: write, pull-requests: write for the PR-comment
+# step) is already declared by both callers; a reusable workflow with no
+# permissions of its own just inherits theirs.
 
 jobs:
   terraform:
