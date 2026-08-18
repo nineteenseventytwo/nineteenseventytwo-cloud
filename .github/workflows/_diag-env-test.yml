@@ -12,11 +12,3 @@ jobs:
       stack: first
       mode: apply
       environment: aws-prod
-
-  second:
-    needs: first
-    uses: ./.github/workflows/_diag-reusable.yml
-    with:
-      stack: second
-      mode: apply
-      environment: aws-prod
