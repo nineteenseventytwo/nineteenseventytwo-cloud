@@ -41,9 +41,19 @@ data "aws_iam_policy_document" "logs_key" {
     }
   }
 
-  # CloudTrail encrypts each log file with a data key from this CMK. The
-  # EncryptionContext condition is what stops the same grant being usable to
-  # encrypt something that is not a trail log.
+  # CloudTrail encrypts each log file with a data key from this CMK. No
+  # EncryptionContext condition, though it would normally be the right call
+  # (stopping the same grant being usable to encrypt something that is not a
+  # trail log): CreateTrail fails an organization trail with
+  # InsufficientEncryptionPolicyException when the grant is conditioned on
+  # the trail's own EncryptionContext, for the same chicken-and-egg reason
+  # aws:SourceArn breaks the bucket policy (see logs_bucket below) — the
+  # condition can't be satisfied for a trail that doesn't exist yet at
+  # create time. Verified directly: an unconditional grant on a scratch key
+  # let CreateTrail succeed; this exact conditioned grant did not. The
+  # unconditional grant is scoped to the cloudtrail.amazonaws.com service
+  # principal, not "anyone" — the realistic exposure is another trail
+  # (anywhere) encrypting under this key, not an arbitrary caller.
   statement {
     sid       = "AllowCloudTrailEncrypt"
     effect    = "Allow"
@@ -52,11 +62,6 @@ data "aws_iam_policy_document" "logs_key" {
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
-    }
-    condition {
-      test     = "StringLike"
-      variable = "kms:EncryptionContext:aws:cloudtrail:arn"
-      values   = ["arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/*"]
     }
   }
 
