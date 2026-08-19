@@ -49,6 +49,17 @@ resource "aws_ebs_encryption_by_default" "this" {
 # one and a placeholder in this field is worse than an empty field: it looks
 # populated in an audit and reaches nobody in an incident. Fill in
 # config/aws.json `contact.phone` and re-apply.
+#
+# contact.name/phone are deliberately never committed — they're a person's
+# real name and mobile number, not infrastructure config. The intended flow is
+# fill them in locally, apply directly against each account with a live
+# session, then revert the file before committing anything. That means
+# config/aws.json as checked in — what CI reads too — always has them empty,
+# so `set_contacts` here is permanently false from Terraform's point of view
+# even after the contacts exist. Without prevent_destroy, the very next apply
+# (local or CI, on any change that touches this stack) would see count go
+# 1 -> 0 and delete them. With it, that apply fails loudly instead — the fix
+# is a local session with the real values re-populated, not a code change.
 locals {
   set_contacts = var.contact != null && try(var.contact.phone, "") != ""
 }
@@ -60,6 +71,10 @@ resource "aws_account_alternate_contact" "security" {
   title                  = "Security"
   email_address          = var.contact.security_email
   phone_number           = var.contact.phone
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_account_alternate_contact" "operations" {
@@ -69,6 +84,10 @@ resource "aws_account_alternate_contact" "operations" {
   title                  = "Operations"
   email_address          = var.contact.operations_email
   phone_number           = var.contact.phone
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_account_alternate_contact" "billing" {
@@ -78,6 +97,10 @@ resource "aws_account_alternate_contact" "billing" {
   title                  = "Billing"
   email_address          = var.contact.billing_email
   phone_number           = var.contact.phone
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # IAM Access Analyzer answers "what in this account can be reached from
