@@ -32,8 +32,15 @@ Two conditions, both mandatory, both `StringEquals`:
 
 ```
 token.actions.githubusercontent.com:aud = sts.amazonaws.com
-token.actions.githubusercontent.com:sub = repo:<org>/<repo>:<context>
+token.actions.githubusercontent.com:sub = repo:<org>@<org_id>/<repo>@<repo_id>:<context>
 ```
+
+The `sub` claim embeds the org's and repo's immutable numeric IDs, not the
+plain slugs — a trust policy built from slugs alone silently never matches,
+and every `AssumeRoleWithWebIdentity` call fails with `AccessDenied`. Find
+the IDs with `gh api repos/OWNER/REPO --jq .id` and `gh api orgs/OWNER --jq
+.id`; both are already recorded in `config/aws.json` under `github.org_id`
+and `github.repo_id`. See [`modules/aws-account-ci`](../modules/aws-account-ci/main.tf).
 
 `aud` proves the token was minted for AWS rather than for some other service
 the same workflow talks to. `sub` proves which job minted it.

@@ -1,11 +1,5 @@
 # Billing guardrails.
 #
-# A budget alarm is an availability control. The failure it catches — a
-# runaway resource, a compromised credential mining crypto, a `for_each` over
-# the wrong list — presents as a bill, and the bill arrives weeks after the
-# event unless something shouts. Treat a surprise as an incident and write the
-# postmortem.
-#
 # These are org-wide (the management account sees consolidated cost), plus a
 # tighter one on the sandbox, which is the account most likely to be left
 # running by accident.

@@ -14,13 +14,7 @@ resource "aws_sns_topic" "security_alerts" {
 
   name = "${module.cfg.org.name}-security-alerts"
 
-  # SNS topics are a favourite exfiltration path: subscribe an external
-  # endpoint, receive everything. The policy below is what stops that being a
-  # one-API-call operation for anyone who gets in.
-  #
-  # The AWS-managed key, not a CMK: this topic only ever carries "root signed
-  # in" notifications, not anything a per-key access policy is worth writing
-  # for.
+  # Encrypt SNS with KMS - attacker SNS sub is common
   kms_master_key_id = "alias/aws/sns"
 
   tags = module.cfg.tags
@@ -62,10 +56,7 @@ resource "aws_sns_topic_policy" "security_alerts" {
   policy = data.aws_iam_policy_document.security_alerts.json
 }
 
-# Email, because it reaches you without depending on anything in this estate
-# being up — which is the property an alert about this estate needs. The
-# subscription must be confirmed from the inbox after the first apply;
-# Terraform reports it as pending until you click.
+# Email - must be confirmed from the inbox after the first apply
 resource "aws_sns_topic_subscription" "security_alerts_email" {
   provider = aws.global
 
@@ -101,9 +92,7 @@ resource "aws_cloudwatch_event_target" "root_sign_in" {
   arn       = aws_sns_topic.security_alerts.arn
 }
 
-# The break-glass equivalent. AssumeRole events land in the region the call was
-# made in, so this rule lives in the primary region rather than us-east-1 — the
-# one place where copying the root rule's placement would be wrong.
+# The break-glass equivalent.
 resource "aws_cloudwatch_event_rule" "break_glass_assumed" {
   name        = "${module.cfg.org.name}-break-glass-assumed"
   description = "Someone assumed BreakGlassAdmin. This should be rare enough to remember why."
