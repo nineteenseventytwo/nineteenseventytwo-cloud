@@ -107,9 +107,6 @@ jobs:
       - name: Confirm which identity we are actually using
         run: aws sts get-caller-identity
 
-      # `make plan` handles init, the backend config and the plan file. CI and
-      # a laptop run the identical command, so a green PR means something
-      # reproducible.
       - name: Plan
         id: plan
         run: make plan STACK=${{ inputs.stack }}
@@ -120,8 +117,6 @@ jobs:
           terraform -chdir=live/aws/${{ inputs.stack }} show -no-color \
             "$PWD/build/${{ inputs.stack }}.tfplan" > "build/${{ inputs.stack }}.txt"
 
-      # A plan nobody reads is a rubber stamp. Posting it on the PR is what
-      # makes "approve the environment" an informed action rather than a click.
       - name: Post the plan on the pull request
         if: inputs.mode == 'plan' && github.event_name == 'pull_request'
         env:

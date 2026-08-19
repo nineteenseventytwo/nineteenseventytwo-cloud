@@ -4,11 +4,6 @@
 # instance and with it every user, permission set and assignment. It is enabled
 # in eu-west-2 by hand during the console bootstrap, and this stack attaches to
 # whatever is there rather than creating it.
-#
-# The identity source stays the built-in directory for now. Federating it to a
-# self-hosted Authentik or Keycloak is Phase 6 work and is disruptive to
-# existing assignments — which is an argument for doing it while the org is
-# small, not for doing it before the cluster that would host the IdP exists.
 
 data "aws_ssoadmin_instances" "this" {}
 
@@ -178,8 +173,7 @@ resource "aws_ssoadmin_account_assignment" "security_audit" {
 }
 
 # --------------------------------------------------------------------------
-# Billing — management account only. Cost is checked far more often than it is
-# changed, and doing it from an admin session is how habits rot.
+# Billing — management account only.
 # --------------------------------------------------------------------------
 
 resource "aws_ssoadmin_permission_set" "billing" {
