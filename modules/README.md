@@ -14,17 +14,3 @@ build if one appears.
 | [`aws-cluster-oidc-role/`](aws-cluster-oidc-role/) | platform-prod | IRSA-style role for one on-prem service account |
 | [`aws-account-baseline/`](aws-account-baseline/) | every stack | The floor: account alias, public access block, EBS encryption, alternate contacts, unused-access analyzer |
 | [`aws-org-policy/`](aws-org-policy/) | org-management | One organisation policy plus its staged attachment list |
-
-## Why these and not a generic wrapper
-
-Each module exists because the same shape appears in three or more places, or
-because it encodes a rule that must not be got wrong by hand — the wildcard
-check on OIDC subjects, the org condition on the state bucket, the precondition
-that an SCP is attached to something.
-
-There is no `aws-vpc` module, no `aws-s3-bucket` module and no cross-cloud
-abstraction. AWS and GCP resources do not hide behind a common interface without
-producing something worse than either, and wrapping a single resource in a
-module adds a layer of indirection to read without adding a rule to enforce.
-When GCP arrives it gets `live/gcp/` and its own modules, sharing conventions
-rather than code.

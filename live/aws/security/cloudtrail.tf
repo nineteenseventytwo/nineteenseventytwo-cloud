@@ -1,16 +1,10 @@
 # The organisation trail and its log archive.
 #
-# Object Lock in COMPLIANCE mode is the point of this file. Versioning stops an
-# overwrite; Object Lock stops a delete — including by the account root, and
-# including by AWS support. An attacker who reaches this account with full
-# admin still cannot remove the record of how they got there. That property is
-# worth the one real cost: for the retention period, you cannot delete these
-# objects either, even if you want to.
-#
-# GOVERNANCE mode would let a principal with s3:BypassGovernanceRetention
-# delete them, which is a control that assumes the attacker did not get admin —
-# and the whole reason to have Object Lock is the case where they did.
-
+# Object Lock in COMPLIANCE mode: versioning stops an overwrite, Object Lock
+# stops a delete — including by the account root. GOVERNANCE mode would let a
+# principal with s3:BypassGovernanceRetention delete these anyway, which
+# defeats the point of holding a tamper-evident record of how an attacker with
+# admin got in.
 locals {
   trail_name  = "${module.cfg.org.name}-org-trail"
   bucket_name = module.cfg.buckets.cloudtrail

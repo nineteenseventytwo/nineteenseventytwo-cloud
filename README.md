@@ -1,10 +1,7 @@
 # nineteenseventytwo-cloud
 
-The cloud half of the `nineteenseventytwo` lab. AWS now, GCP later, one
+The cloud half of the `nineteenseventytwo` lab. AWS now, GCP etc later, one
 Terraform binary and one identity model across both.
-
-This repo answers one question: **how do I rebuild the AWS organisation from
-nothing, without ever creating a credential that outlives an hour?**
 
 ---
 
@@ -110,52 +107,20 @@ The apply role trusts exactly one subject:
 obtain write credentials. That makes the GitHub environment's protection rules
 a load-bearing control, so set a required reviewer on it.
 
-## What the platform repo gets
-
-| Need | Before AWS | After |
-|---|---|---|
-| Bootstrap secrets (cloud-init, Ansible, pre-cluster) | SOPS + age | **stays SOPS + age** |
-| In-cluster secrets for Argo CD | — | SOPS + KMS, via the cluster OIDC role |
-| Vault auto-unseal | — | KMS CMK in platform-prod, via the cluster OIDC role |
-| Longhorn backups | local | S3 in platform-prod, via the cluster OIDC role |
-| GitHub Actions needing AWS | — | GitHub OIDC role, no secrets |
-
-**Age stays for bootstrap, deliberately.** If the only path to a secret runs
-through AWS, you cannot provision a Pi or rebuild the network without a working
-AWS account. Bootstrap secrets must have no cloud dependency — that is correct
-layering, not a compromise.
-
 ## Docs
 
 | | |
 |---|---|
 | [00-manual-bootstrap.md](docs/00-manual-bootstrap.md) | The console steps, and nothing more than is unavoidable |
-| [01-current-state-inventory.md](docs/01-current-state-inventory.md) | As-built network, compute, CI/CD |
-| [02-target-architecture.md](docs/02-target-architecture.md) | Where the whole estate is going |
-| [03-rebuild-timeline.md](docs/03-rebuild-timeline.md) | Phases, and why AWS lands before the cluster |
-| [04-aws-landing-zone.md](docs/04-aws-landing-zone.md) | The landing zone plan this repo implements |
-| [05-terraform-workflow.md](docs/05-terraform-workflow.md) | Plan, apply, add a stack, read a denial |
-| [06-federation.md](docs/06-federation.md) | GitHub OIDC and cluster IRSA, end to end |
+| [01-aws-landing-zone.md](docs/01-aws-landing-zone.md) | The landing zone plan this repo implements |
+| [02-terraform-workflow.md](docs/02-terraform-workflow.md) | Plan, apply, add a stack, read a denial |
+| [03-federation.md](docs/03-federation.md) | GitHub OIDC and cluster IRSA, end to end |
 | [policies/README.md](policies/README.md) | What each SCP prevents and what it costs you |
 | [decisions/](docs/decisions/) | ADRs |
 
-## Current state
-
-Nothing is deployed. No AWS account exists yet — this repo is the plan made
-executable, ahead of Phase 2.5 in
-[03-rebuild-timeline.md](docs/03-rebuild-timeline.md).
+## TODO
 
 Known outstanding, before this manages anything real:
-
-- **Pin the GitHub Actions to commit SHAs.** They are on current major tags
-  (checked 2026-08-16), but a major tag is mutable — the maintainer moves it on
-  every release, and so can anyone who compromises the repo. In a job holding an
-  org-modifying role that is the wrong risk. The note in
-  [`.github/workflows/_terraform.yml`](.github/workflows/_terraform.yml) has the
-  one-liner that resolves them all. Version policy for everything else:
-  [05-terraform-workflow.md](docs/05-terraform-workflow.md#versions).
-- **Fill in `contact.phone`** in [`config/aws.json`](config/aws.json), or the
-  alternate contacts — where AWS sends compromise notices — stay unset.
 - **The staged SCPs.** `DenyRegionsOutsideAllowlist` and
   `DenyExpensiveResources` attach to the sandbox account only. Widen to the OU,
   then the root, watching CloudTrail between steps

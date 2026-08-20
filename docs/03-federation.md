@@ -1,4 +1,4 @@
-# 06 — Federation
+# 03 — Federation
 
 Three ways to get AWS credentials in this estate. None of them is a stored key,
 and there is no fourth.

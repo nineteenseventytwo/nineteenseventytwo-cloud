@@ -7,7 +7,7 @@
 #
 # No pod in this design holds an AWS credential. Each one presents a projected
 # service-account token to STS and gets an hour of access to exactly one role.
-# See docs/06-federation.md.
+# See docs/03-federation.md.
 
 terraform {
   required_version = ">= 1.15.8"

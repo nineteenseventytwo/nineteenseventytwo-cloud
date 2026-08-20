@@ -1,21 +1,9 @@
 # IRSA for a cluster that is not EKS.
 #
-# Gated behind `publish_cluster_oidc`, default false, for one practical reason:
-# registering an OIDC provider means AWS resolving and validating the issuer
-# URL, and `oidc.eightbitsaxlounge.com` does not resolve until the discovery
-# documents are published and the Cloudflare record exists. Applying this
-# before then fails in a way that reads like a permissions problem.
-#
-# The order, once the cluster is built (docs/06-federation.md has the full
-# walkthrough):
-#
-#   1. kubeadm init with service-account-issuer = the public URL   <- one-way
-#   2. kubectl get --raw the two discovery documents
-#   3. upload them to the JWKS bucket, front it at oidc.<domain>
-#   4. set publish_cluster_oidc = true, apply this stack
-#   5. annotate the service accounts with the role ARNs below
-#
-# Step 1 cannot be undone cheaply. Everything after it can.
+# Gated behind `publish_cluster_oidc`: registering an OIDC provider means AWS
+# resolving and validating the issuer URL, and that fails in a way that reads
+# like a permissions problem if the URL doesn't resolve yet. Rollout sequence
+# and the reasoning behind it: docs/03-federation.md.
 
 resource "aws_iam_openid_connect_provider" "cluster" {
   count = var.publish_cluster_oidc ? 1 : 0

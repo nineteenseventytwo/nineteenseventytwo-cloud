@@ -1,6 +1,6 @@
 # The cloud half of the hybrid network. Off by default — an empty VPC costs
 # nothing, but the endpoints inside it do not, and nothing needs it until the
-# Tailscale subnet router and the Graviton worker arrive in Phase 5/6.
+# Tailscale subnet router and a Graviton worker land.
 #
 # Shape, when it is turned on:
 #   private subnets only, no internet gateway, no public IPs
