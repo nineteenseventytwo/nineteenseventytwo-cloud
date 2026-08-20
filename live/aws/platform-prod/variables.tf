@@ -5,7 +5,7 @@ variable "publish_cluster_oidc" {
 }
 
 variable "enable_prowler_role" {
-  description = "Create the cluster role for scheduled Prowler scans. Separate from publish_cluster_oidc because Prowler arrives in Phase 5, well after the first IRSA role."
+  description = "Create the cluster role for scheduled Prowler scans. Kept as its own flag rather than folded into publish_cluster_oidc, since the two roll out independently."
   type        = bool
   default     = false
 }

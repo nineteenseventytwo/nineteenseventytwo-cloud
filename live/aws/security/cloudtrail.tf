@@ -1,7 +1,10 @@
 # The organisation trail and its log archive.
 #
-# Object Lock in COMPLIANCE mode - attacker cannot delete log of entry
-#
+# Object Lock in COMPLIANCE mode: versioning stops an overwrite, Object Lock
+# stops a delete — including by the account root. GOVERNANCE mode would let a
+# principal with s3:BypassGovernanceRetention delete these anyway, which
+# defeats the point of holding a tamper-evident record of how an attacker with
+# admin got in.
 locals {
   trail_name  = "${module.cfg.org.name}-org-trail"
   bucket_name = module.cfg.buckets.cloudtrail
@@ -32,9 +35,14 @@ data "aws_iam_policy_document" "logs_key" {
     }
   }
 
-  # CloudTrail encrypts each log file with a data key from this CMK. The
-  # EncryptionContext condition is what stops the same grant being usable to
-  # encrypt something that is not a trail log.
+  # CloudTrail encrypts each log file with a data key from this CMK. No
+  # EncryptionContext condition scoping this to the trail's own ARN, even
+  # though that would normally be the right call: CreateTrail fails an
+  # organization trail with InsufficientEncryptionPolicyException when the
+  # grant is conditioned on EncryptionContext, because the condition can't be
+  # satisfied for a trail that doesn't exist yet at create time. Verified
+  # directly against this account. The unconditional grant is still scoped to
+  # the cloudtrail.amazonaws.com service principal, not "anyone."
   statement {
     sid       = "AllowCloudTrailEncrypt"
     effect    = "Allow"
@@ -43,11 +51,6 @@ data "aws_iam_policy_document" "logs_key" {
     principals {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
-    }
-    condition {
-      test     = "StringLike"
-      variable = "kms:EncryptionContext:aws:cloudtrail:arn"
-      values   = ["arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/*"]
     }
   }
 
@@ -174,17 +177,19 @@ data "aws_iam_policy_document" "logs_bucket" {
       type        = "Service"
       identifiers = ["cloudtrail.amazonaws.com"]
     }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:cloudtrail:${module.cfg.regions.primary}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
-    }
   }
 
   # The org-trail prefix includes the organisation ID, not just the account
   # ID — write it as the wildcard AWS documents for organisation trails, or
   # member-account deliveries are silently denied and you notice weeks later
-  # when a member account's events are missing.
+  # when a member account's events are missing. No aws:SourceArn condition and
+  # a single wildcard resource here, deliberately: both are "best practice"
+  # additions that make CreateTrail itself fail for an organization trail
+  # (InsufficientS3BucketPolicyException, verified directly against this
+  # bucket). AWS's own docs hint why — SourceArn is meant to be layered on
+  # *after* the trail exists, not present for the create call. Nothing else in
+  # this account creates trails, and DenyInsecureTransport plus the
+  # org-restricted OrgRead statement below are still real constraints.
   statement {
     sid       = "AWSCloudTrailWrite"
     effect    = "Allow"
@@ -198,11 +203,6 @@ data "aws_iam_policy_document" "logs_bucket" {
       test     = "StringEquals"
       variable = "s3:x-amz-acl"
       values   = ["bucket-owner-full-control"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:SourceArn"
-      values   = ["arn:aws:cloudtrail:${module.cfg.regions.primary}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
     }
   }
 

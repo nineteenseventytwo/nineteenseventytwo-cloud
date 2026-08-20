@@ -112,12 +112,9 @@ a load-bearing control, so set a required reviewer on it.
 | | |
 |---|---|
 | [00-manual-bootstrap.md](docs/00-manual-bootstrap.md) | The console steps, and nothing more than is unavoidable |
-| [01-current-state-inventory.md](docs/01-current-state-inventory.md) | As-built network, compute, CI/CD |
-| [02-target-architecture.md](docs/02-target-architecture.md) | Where the whole estate is going |
-| [03-rebuild-timeline.md](docs/03-rebuild-timeline.md) | Phases, and why AWS lands before the cluster |
-| [04-aws-landing-zone.md](docs/04-aws-landing-zone.md) | The landing zone plan this repo implements |
-| [05-terraform-workflow.md](docs/05-terraform-workflow.md) | Plan, apply, add a stack, read a denial |
-| [06-federation.md](docs/06-federation.md) | GitHub OIDC and cluster IRSA, end to end |
+| [01-aws-landing-zone.md](docs/01-aws-landing-zone.md) | The landing zone plan this repo implements |
+| [02-terraform-workflow.md](docs/02-terraform-workflow.md) | Plan, apply, add a stack, read a denial |
+| [03-federation.md](docs/03-federation.md) | GitHub OIDC and cluster IRSA, end to end |
 | [policies/README.md](policies/README.md) | What each SCP prevents and what it costs you |
 | [decisions/](docs/decisions/) | ADRs |
 

@@ -202,7 +202,7 @@ In GitHub, on `nineteenseventytwo/nineteenseventytwo-cloud`:
 3. The `lint` and `terraform-plan` workflows should run green, having been
    given no secrets at all. If `terraform-plan` cannot assume its role, the
    `sub` in the trust policy and the workflow's trigger disagree — check
-   [docs/06-federation.md](06-federation.md).
+   [docs/03-federation.md](03-federation.md).
 4. Merge. `terraform-apply` runs, pauses for your approval, then applies each
    stack in dependency order.
 

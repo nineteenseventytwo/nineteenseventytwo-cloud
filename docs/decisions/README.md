@@ -14,7 +14,7 @@ the inconvenient ones.
 | [0006](ADR-0006-public-cluster-oidc-issuer.md) | A public OIDC issuer for cluster→AWS federation | Accepted |
 
 The landing zone's own decision log — regions, the identity model, the SCP
-list — lives in [04-aws-landing-zone.md](../04-aws-landing-zone.md). ADRs here
+list — lives in [01-aws-landing-zone.md](../01-aws-landing-zone.md). ADRs here
 are for choices this repo made while implementing it.
 
 ## Template

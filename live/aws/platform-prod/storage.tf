@@ -82,8 +82,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "longhorn" {
 # The security boundary is the trust condition on each role (`sub` = a specific
 # service account, `aud` = sts.amazonaws.com), not the secrecy of this bucket.
 #
-# Created empty and left waiting. The cluster does not exist yet; when it does,
-# `kubeadm init` must already have been given this issuer URL, because
+# `kubeadm init` must be given this issuer URL up front — one-way door.
 # `service-account-issuer` cannot be changed afterwards without restarting the
 # control plane and invalidating every projected token.
 

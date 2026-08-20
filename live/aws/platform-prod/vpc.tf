@@ -1,6 +1,6 @@
 # The cloud half of the hybrid network. Off by default — an empty VPC costs
 # nothing, but the endpoints inside it do not, and nothing needs it until the
-# Tailscale subnet router and the Graviton worker arrive in Phase 5/6.
+# Tailscale subnet router and a Graviton worker land.
 #
 # Shape, when it is turned on:
 #   private subnets only, no internet gateway, no public IPs
@@ -59,7 +59,8 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[0].id
 }
 
-# VPC -> S3 without a NAT
+# Free, and the difference between "this subnet can reach S3" and "this subnet
+# needs a NAT Gateway".
 resource "aws_vpc_endpoint" "s3" {
   count = var.enable_vpc ? 1 : 0
 
@@ -71,6 +72,10 @@ resource "aws_vpc_endpoint" "s3" {
   tags = merge(module.cfg.tags, { Name = "${module.cfg.org.name}-s3" })
 }
 
+# The default security group cannot be deleted, and its default rules allow
+# all traffic between anything that happens to land in it. Emptying it means a
+# resource created without an explicit security group gets no connectivity
+# rather than silent any-to-any.
 resource "aws_default_security_group" "this" {
   count = var.enable_vpc ? 1 : 0
 

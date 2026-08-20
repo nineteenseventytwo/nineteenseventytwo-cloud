@@ -44,8 +44,13 @@ module "baseline" {
   tags          = module.cfg.tags
 }
 
-# Container images stay on ghcr.io for now.
-# Add ECR to accomodate AWS workloads reaching images without networking to GitHub. 
+# Container images stay on ghcr.io. The platform repo already builds and
+# promotes there, GitHub's registry is free for this org's usage, and moving
+# would mean paying for ECR storage and transfer to gain nothing the cluster
+# needs — it pulls over the internet either way. ECR earns its place only if
+# an AWS-side workload needs to pull without egressing to GitHub (a Graviton
+# worker behind a VPC endpoint, say) — the variable exists so that's a
+# one-line change, not a new stack.
 resource "aws_ecr_repository" "this" {
   for_each = toset(var.ecr_repositories)
 
