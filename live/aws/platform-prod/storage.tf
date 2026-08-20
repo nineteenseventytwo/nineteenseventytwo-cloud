@@ -87,13 +87,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "longhorn" {
 # control plane and invalidating every projected token.
 
 resource "aws_s3_bucket" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = module.cfg.buckets.jwks
   tags   = module.cfg.tags
 }
 
 resource "aws_s3_bucket_versioning" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
   versioning_configuration {
     status = "Enabled"
@@ -105,7 +105,7 @@ resource "aws_s3_bucket_versioning" "jwks" {
 # writing for, and kms.tf's two-CMK line is about blast radius, not ticking
 # an "encrypted" box.
 resource "aws_s3_bucket_server_side_encryption_configuration" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
   rule {
     apply_server_side_encryption_by_default {
@@ -119,7 +119,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "jwks" {
 # not accumulated — expire noncurrent versions quickly rather than keeping a
 # history nobody reads.
 resource "aws_s3_bucket_lifecycle_configuration" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
 
   rule {
@@ -138,7 +138,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "jwks" {
 }
 
 resource "aws_s3_bucket_public_access_block" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
 
   # A public bucket policy is the entire point of this bucket. ACLs stay
@@ -151,7 +151,7 @@ resource "aws_s3_bucket_public_access_block" "jwks" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
   rule {
     object_ownership = "BucketOwnerEnforced"
@@ -159,7 +159,7 @@ resource "aws_s3_bucket_ownership_controls" "jwks" {
 }
 
 data "aws_iam_policy_document" "jwks" {
-  count = var.publish_cluster_oidc ? 1 : 0
+  count = var.create_jwks_bucket ? 1 : 0
 
   # Read, on exactly two paths. Not `/*` — a public bucket that serves anything
   # dropped into it is one careless upload away from being a file host.
@@ -195,7 +195,7 @@ data "aws_iam_policy_document" "jwks" {
 }
 
 resource "aws_s3_bucket_policy" "jwks" {
-  count  = var.publish_cluster_oidc ? 1 : 0
+  count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
   policy = data.aws_iam_policy_document.jwks[0].json
 

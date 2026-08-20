@@ -20,8 +20,22 @@ output "longhorn_backup_target" {
 }
 
 output "jwks_bucket" {
-  description = "Public OIDC discovery bucket, or null while publish_cluster_oidc is false."
+  description = "Public OIDC discovery bucket, or null while create_jwks_bucket is false."
   value       = try(aws_s3_bucket.jwks[0].id, null)
+}
+
+# The Cloudflare Worker at oidc.<domain> fetches from this hostname. It is the
+# regional REST endpoint, not the website endpoint: the bucket policy denies
+# aws:SecureTransport=false, and the website endpoint is HTTP-only, so the
+# usual "CNAME to the website endpoint" shortcut is closed off here by design.
+output "jwks_origin_host" {
+  description = "S3 REST endpoint the Cloudflare Worker proxies to. Paste into the Worker's ORIGIN_HOST binding."
+  value       = try("${aws_s3_bucket.jwks[0].id}.s3.${module.cfg.regions.primary}.amazonaws.com", null)
+}
+
+output "cluster_oidc_issuer" {
+  description = "The issuer URL baked into kubeadm's service-account-issuer. Immutable for the life of the cluster."
+  value       = module.cfg.cluster.oidc_issuer
 }
 
 output "cluster_oidc_provider_arn" {

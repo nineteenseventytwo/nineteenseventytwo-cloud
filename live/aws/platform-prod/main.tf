@@ -42,6 +42,6 @@ module "baseline" {
   account_name        = "platform-prod"
   account_alias       = module.cfg.accounts["platform-prod"].name
   contact             = module.cfg.contact
-  block_public_access = !var.publish_cluster_oidc
+  block_public_access = !var.create_jwks_bucket
   tags                = module.cfg.tags
 }
