@@ -1,15 +1,6 @@
 # Detection: GuardDuty and IAM Access Analyzer, organisation-wide.
 #
-# What is deliberately *not* here: AWS Config and Security Hub. Config bills
-# per configuration item recorded and per rule evaluation; Security Hub's CSPM
-# checks consume billable Config items on top of its own per-resource price.
-# On a five-account org with a few dozen resources that is real money for
-# posture findings that Prowler produces free, on a schedule, in JSON you can
-# push into Grafana. The control objective is CIS posture visibility; the
-# managed option is not the only way to meet it. See
-# docs/decisions/ADR-0005-prowler-over-config-security-hub.md — the tradeoff is
-# written down because "we could not afford it" and "we chose not to" are
-# different answers.
+# AWS Config and Security Hub not enabled - using prowler for cost-effective CIS benchmark scanning instead.
 
 resource "aws_guardduty_detector" "this" {
   enable = true
@@ -77,9 +68,7 @@ resource "aws_accessanalyzer_analyzer" "org_external" {
   tags          = module.cfg.tags
 }
 
-# Where Prowler writes its findings. Created empty; the scheduled scan lands in
-# Phase 5 as a CronJob in the cluster using a cluster OIDC role, or as a
-# GitHub Actions job — either way, no stored credential.
+# Where Prowler writes its findings.
 resource "aws_s3_bucket" "prowler" {
   bucket = module.cfg.buckets.prowler
   tags   = module.cfg.tags
