@@ -126,16 +126,37 @@ apiServer:
 
 ### The sequence
 
-1. **Cluster up**, with the issuer above.
+Each step is blocked by the one before it. Two of the dependencies are circular
+if approached the other way round, which is why the rollout is gated by two
+flags rather than one.
 
-2. **Extract the documents:**
+The cluster-side half of this — the Ansible changes, the Cloudflare Worker, the
+`make publish-oidc` target — lives in the platform repo at
+[`docs/06-aws-federation.md`](https://github.com/nineteenseventytwo/nineteenseventytwo-platform/blob/main/docs/06-aws-federation.md).
+
+1. **Create the bucket.** Set `create_jwks_bucket = true` in
+   `live/aws/platform-prod/variables.tf` and apply. This must happen before the
+   cluster exists, because the cluster has nowhere to publish to otherwise.
+
+   This also lifts the account-level S3 public access block on `platform-prod`
+   — that block would override the JWKS bucket policy. Every other bucket in
+   the account carries its own block explicitly.
+
+2. **Build the cluster**, with the issuer above set at `kubeadm init`. This is
+   the one-way door.
+
+3. **Extract the documents:**
 
    ```bash
    kubectl get --raw /.well-known/openid-configuration > openid-configuration
    kubectl get --raw /openid/v1/jwks                   > jwks
    ```
 
-3. **Publish them** to the JWKS bucket at exactly these keys — the paths are
+   If `issuer` in the first document is `https://kubernetes.default.svc`, the
+   cluster was built without the issuer flag and IRSA cannot work on it. The
+   control plane has to be rebuilt; nothing downstream will fix it.
+
+4. **Publish them** to the JWKS bucket at exactly these keys — the paths are
    part of the protocol, not a convention:
 
    ```bash
@@ -147,24 +168,36 @@ apiServer:
      --content-type application/json
    ```
 
+   The platform repo wraps steps 3 and 4, plus verification, as
+   `make publish-oidc`.
+
    The `issuer` field inside the discovery document must equal the public URL
    character for character, including the absence of a trailing slash. A
    mismatch produces an invalid-token error that says nothing about URLs.
 
-4. **Point `oidc.eightbitsaxlounge.com` at the bucket** in Cloudflare, and
-   confirm from outside your network:
+5. **Point `oidc.eightbitsaxlounge.com` at the bucket** with a Cloudflare
+   Worker, and confirm from outside your network:
 
    ```bash
    curl https://oidc.eightbitsaxlounge.com/.well-known/openid-configuration
    curl https://oidc.eightbitsaxlounge.com/openid/v1/jwks
    ```
 
-5. **Register it and create the roles:** set `publish_cluster_oidc = true` in
-   `live/aws/platform-prod` and apply. Until the URL resolves, registration
-   fails in a way that reads like a permissions error, which is why it is
-   gated.
+   A Worker rather than a proxied CNAME, for a reason worth recording: the
+   bucket policy denies `aws:SecureTransport=false`, so the S3 *website*
+   endpoint is HTTP-only and refused outright. The *REST* endpoint speaks HTTPS
+   but presents a certificate for `*.s3.eu-west-2.amazonaws.com`, so proxying
+   to it by CNAME needs either an Enterprise-only SNI override or Full
+   (non-strict) SSL, which stops validating the origin. A Worker fetches by the
+   origin's real hostname and validates normally. `jwks_origin_host` is an
+   output of this stack for exactly that purpose.
 
-6. **Annotate the service accounts** in the platform repo with the ARNs from
+6. **Register it and create the roles:** set `publish_cluster_oidc = true` and
+   apply. Until the URL resolves, registration fails in a way that reads like a
+   permissions error, which is why it is gated. Terraform will refuse the apply
+   outright if `create_jwks_bucket` is not also true.
+
+7. **Annotate the service accounts** in the platform repo with the ARNs from
    `make output STACK=platform-prod`:
 
    ```yaml
@@ -173,12 +206,11 @@ apiServer:
        eks.amazonaws.com/role-arn: arn:aws:iam::<platform-prod>:role/cluster/cluster-longhorn-backup
    ```
 
-   With the open-source `pod-identity-webhook` — the same one EKS runs — that
-   annotation is all a pod needs; the webhook injects `AWS_ROLE_ARN`,
-   `AWS_WEB_IDENTITY_TOKEN_FILE` and the projected token volume, and every AWS
-   SDK picks them up with no application change. Without the webhook, set those
-   two variables and project the token with `audience: sts.amazonaws.com`
-   yourself.
+   With the open-source `pod-identity-webhook` — the same one EKS runs, now
+   deployed in the platform repo at sync wave 25 — that annotation is all a pod
+   needs; the webhook injects `AWS_ROLE_ARN`, `AWS_WEB_IDENTITY_TOKEN_FILE` and
+   the projected token volume, and every AWS SDK picks them up with no
+   application change.
 
 ### Why publishing this is safe
 
@@ -215,13 +247,16 @@ Argo CD decrypting SOPS-with-KMS secrets, Longhorn backing up to S3, Vault
 auto-unsealing with a CMK, Prowler scanning from a CronJob — none of them
 holding a credential.
 
-That last one matters most today: the platform repo's
-`cluster/vault/values.yaml` currently passes `AWS_ACCESS_KEY_ID` and
-`AWS_SECRET_ACCESS_KEY` to Vault for KMS auto-unseal, from a `vault-kms`
-Secret. That is precisely the long-lived key this design exists to eliminate,
-and `DenyIAMUsersAndKeys` makes it impossible to create the key it wants.
-Replacing it with the `cluster-vault-unseal` role is the first thing to do
-after step 6.
+The Vault case is done: `cluster/vault/values.yaml` used to pass
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from a `vault-kms` Secret, which
+was precisely the long-lived key this design exists to eliminate and which
+`DenyIAMUsersAndKeys` makes impossible to create. That Secret is gone; the pod
+now carries a ServiceAccount annotation and nothing else.
+
+Argo CD's SOPS decryption is the one still outstanding — the role and the
+annotation exist, and the SOPS CMK is now a recipient in the platform repo's
+`.sops.yaml`, but no decryption plugin is configured for Argo CD yet, so the
+role has no consumer.
 
 ---
 

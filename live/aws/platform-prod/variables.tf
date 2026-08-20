@@ -1,7 +1,24 @@
+# The two halves of the OIDC rollout, deliberately separate. The bucket must
+# exist before the cluster can publish its discovery documents into it, and the
+# documents must be live on the public URL before AWS will register the
+# provider. One flag for both is circular — you could never get from an empty
+# account to a working issuer. docs/03-federation.md walks the order.
+
+variable "create_jwks_bucket" {
+  description = "Create the public OIDC discovery bucket and its policy. Turn this on first: the cluster publishes its discovery documents here, and they must be readable on the public URL before publish_cluster_oidc can succeed."
+  type        = bool
+  default     = true
+}
+
 variable "publish_cluster_oidc" {
-  description = "Create the JWKS bucket, register the cluster OIDC provider and create the IRSA-style roles. False until the cluster exists and oidc.<domain> resolves — registering a provider whose issuer URL does not resolve fails in a way that reads like a permissions error."
+  description = "Register the cluster OIDC provider and create the IRSA-style roles. Requires create_jwks_bucket, the documents uploaded, and oidc.<domain> resolving publicly — registering a provider whose issuer URL does not resolve fails in a way that reads like a permissions error."
   type        = bool
   default     = false
+
+  validation {
+    condition     = var.publish_cluster_oidc ? var.create_jwks_bucket : true
+    error_message = "publish_cluster_oidc requires create_jwks_bucket. The provider cannot register until the discovery documents are live, and they have nowhere to live without the bucket."
+  }
 }
 
 variable "enable_prowler_role" {
