@@ -59,8 +59,7 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[0].id
 }
 
-# Free, and the difference between "this subnet can reach S3" and "this subnet
-# needs a NAT Gateway".
+# VPC -> S3 without a NAT
 resource "aws_vpc_endpoint" "s3" {
   count = var.enable_vpc ? 1 : 0
 
@@ -72,10 +71,6 @@ resource "aws_vpc_endpoint" "s3" {
   tags = merge(module.cfg.tags, { Name = "${module.cfg.org.name}-s3" })
 }
 
-# The default security group cannot be deleted, and its default rules allow
-# all traffic between anything that happens to land in it. Emptying it means a
-# resource created without an explicit security group gets no connectivity
-# rather than silent any-to-any.
 resource "aws_default_security_group" "this" {
   count = var.enable_vpc ? 1 : 0
 

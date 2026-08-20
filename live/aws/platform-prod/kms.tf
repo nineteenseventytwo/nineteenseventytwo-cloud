@@ -27,11 +27,7 @@ data "aws_iam_policy_document" "key_base" {
 
 # Decrypts the SOPS-encrypted secrets Argo CD reconciles from git.
 #
-# Note what this does NOT replace: bootstrap secrets stay on SOPS with age
-# recipients, deliberately. If the only path to a secret runs through AWS, you
-# cannot provision a Pi or rebuild the network without a working AWS account —
-# so the layer below the cluster keeps a dependency-free encryption path. That
-# is correct layering, not a compromise.
+# bootstrap secrets stay on SOPS with age recipients, in case aws is unavailable
 resource "aws_kms_key" "sops" {
   description             = "SOPS/Argo CD secret decryption for the on-prem cluster"
   enable_key_rotation     = true
@@ -48,12 +44,6 @@ resource "aws_kms_alias" "sops" {
 # Vault auto-unseal.
 #
 # Vault OSS seals itself on every restart and needs unseal keys to come back.
-# On a Pi cluster that reboots, that means hand-unsealing at 11pm. This key
-# removes the human from that loop for about a dollar a month, and the honest
-# tradeoff is written down: the cluster's secrets are unavailable if AWS KMS is
-# unavailable. Provisioned now, idle until Vault lands in Phase 5, so its
-# rotation policy and access are decided in the same review pass as the others
-# rather than bolted on later.
 resource "aws_kms_key" "vault_unseal" {
   description             = "Vault auto-unseal for the on-prem cluster"
   enable_key_rotation     = true
