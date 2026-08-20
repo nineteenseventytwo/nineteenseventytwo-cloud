@@ -23,6 +23,9 @@ data "aws_iam_policy_document" "apply_mgmt" {
       "identitystore:*",
       "account:*",
       "iam:*",
+      # GuardDuty org-admin delegation (delegation.tf) is a management-account
+      # action; nothing else here touches GuardDuty.
+      "guardduty:*",
     ]
     resources = ["*"]
   }
@@ -41,6 +44,23 @@ data "aws_iam_policy_document" "apply_mgmt" {
       "cloudwatch:*",
       "kms:*",
       "tag:*",
+    ]
+    resources = ["*"]
+  }
+
+  # aws-account-baseline (modules/aws-account-baseline) runs in every account,
+  # including this one: the account-level S3 public access block, EBS
+  # encryption default, and the per-account unused-access analyzer.
+  statement {
+    sid    = "AccountBaseline"
+    effect = "Allow"
+    actions = [
+      "access-analyzer:*",
+      "s3:GetAccountPublicAccessBlock",
+      "s3:PutAccountPublicAccessBlock",
+      "ec2:GetEbsEncryptionByDefault",
+      "ec2:EnableEbsEncryptionByDefault",
+      "ec2:DisableEbsEncryptionByDefault",
     ]
     resources = ["*"]
   }
@@ -63,6 +83,24 @@ data "aws_iam_policy_document" "apply_security" {
       "iam:*",
       "account:*",
       "tag:*",
+      # Read-only: the org ID goes into KMS key and bucket policy conditions
+      # (cloudtrail.tf, detection.tf). Not organizations:*, which would give
+      # this account org-management's own power.
+      "organizations:DescribeOrganization",
+    ]
+    resources = ["*"]
+  }
+
+  # aws-account-baseline's EBS encryption default. s3:* above already covers
+  # the account-level public access block, and guardduty:*/access-analyzer:*
+  # already cover the rest of the baseline.
+  statement {
+    sid    = "AccountBaseline"
+    effect = "Allow"
+    actions = [
+      "ec2:GetEbsEncryptionByDefault",
+      "ec2:EnableEbsEncryptionByDefault",
+      "ec2:DisableEbsEncryptionByDefault",
     ]
     resources = ["*"]
   }
@@ -83,6 +121,20 @@ data "aws_iam_policy_document" "apply_shared" {
     ]
     resources = ["*"]
   }
+
+  # aws-account-baseline's unused-access analyzer and EBS encryption default.
+  # s3:* above already covers the account-level public access block.
+  statement {
+    sid    = "AccountBaseline"
+    effect = "Allow"
+    actions = [
+      "access-analyzer:*",
+      "ec2:GetEbsEncryptionByDefault",
+      "ec2:EnableEbsEncryptionByDefault",
+      "ec2:DisableEbsEncryptionByDefault",
+    ]
+    resources = ["*"]
+  }
 }
 
 data "aws_iam_policy_document" "apply_platform_prod" {
@@ -100,6 +152,17 @@ data "aws_iam_policy_document" "apply_platform_prod" {
       "cloudwatch:*",
       "account:*",
       "tag:*",
+    ]
+    resources = ["*"]
+  }
+
+  # aws-account-baseline's unused-access analyzer. s3:* and ec2:* above
+  # already cover the rest of the baseline.
+  statement {
+    sid    = "AccountBaseline"
+    effect = "Allow"
+    actions = [
+      "access-analyzer:*",
     ]
     resources = ["*"]
   }

@@ -36,13 +36,18 @@ data "aws_iam_policy_document" "logs_key" {
   }
 
   # CloudTrail encrypts each log file with a data key from this CMK. No
-  # EncryptionContext condition scoping this to the trail's own ARN, even
-  # though that would normally be the right call: CreateTrail fails an
-  # organization trail with InsufficientEncryptionPolicyException when the
-  # grant is conditioned on EncryptionContext, because the condition can't be
-  # satisfied for a trail that doesn't exist yet at create time. Verified
-  # directly against this account. The unconditional grant is still scoped to
-  # the cloudtrail.amazonaws.com service principal, not "anyone."
+  # EncryptionContext condition, though it would normally be the right call
+  # (stopping the same grant being usable to encrypt something that is not a
+  # trail log): CreateTrail fails an organization trail with
+  # InsufficientEncryptionPolicyException when the grant is conditioned on
+  # the trail's own EncryptionContext, for the same chicken-and-egg reason
+  # aws:SourceArn breaks the bucket policy (see logs_bucket below) — the
+  # condition can't be satisfied for a trail that doesn't exist yet at
+  # create time. Verified directly: an unconditional grant on a scratch key
+  # let CreateTrail succeed; this exact conditioned grant did not. The
+  # unconditional grant is scoped to the cloudtrail.amazonaws.com service
+  # principal, not "anyone" — the realistic exposure is another trail
+  # (anywhere) encrypting under this key, not an arbitrary caller.
   statement {
     sid       = "AllowCloudTrailEncrypt"
     effect    = "Allow"
@@ -179,16 +184,21 @@ data "aws_iam_policy_document" "logs_bucket" {
     }
   }
 
-  # The org-trail prefix includes the organisation ID, not just the account
-  # ID — write it as the wildcard AWS documents for organisation trails, or
-  # member-account deliveries are silently denied and you notice weeks later
-  # when a member account's events are missing. No aws:SourceArn condition and
-  # a single wildcard resource here, deliberately: both are "best practice"
-  # additions that make CreateTrail itself fail for an organization trail
-  # (InsufficientS3BucketPolicyException, verified directly against this
-  # bucket). AWS's own docs hint why — SourceArn is meant to be layered on
-  # *after* the trail exists, not present for the create call. Nothing else in
-  # this account creates trails, and DenyInsecureTransport plus the
+  # No aws:SourceArn condition, and a single wildcard resource
+  # (.../AWSLogs/*) rather than the account-ID/org-ID split AWS's own docs
+  # recommend — both are "best practice" additions that turn out to make
+  # CreateTrail itself fail for an organization trail. Verified directly
+  # against the real bucket (aws cloudtrail create-trail, iterating through
+  # every combination) before landing this: aws:SourceArn on any of these
+  # three statements makes CreateTrail reject the policy with
+  # InsufficientS3BucketPolicyException, every time, regardless of which
+  # account's trail ARN it names — CloudTrail's own docs hint why, saying to
+  # add SourceArn "to S3 bucket policies for *existing* trails": the
+  # condition is meant to be layered on after the trail exists, not present
+  # for the create call itself. The account-ID/org-ID split independently
+  # fails the same way; a single wildcard statement does not. No condition
+  # here means any trail could write under AWSLogs/ in this bucket, but nothing
+  # else in this account creates trails, and DenyInsecureTransport plus the
   # org-restricted OrgRead statement below are still real constraints.
   statement {
     sid       = "AWSCloudTrailWrite"

@@ -1,4 +1,4 @@
-# 05 — Terraform workflow
+# 02 — Terraform workflow
 
 How a change gets from an idea to an AWS API call, and what stops it at each
 step.

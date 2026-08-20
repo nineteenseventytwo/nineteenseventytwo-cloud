@@ -6,6 +6,15 @@
       },
       "http_put_response_hop_limit": {
         "@@assign": "2"
+      },
+      "http_endpoint": {
+        "@@assign": "enabled"
+      },
+      "instance_metadata_tags": {
+        "@@assign": "enabled"
+      },
+      "http_tokens_enforced": {
+        "@@assign": "enabled"
       }
     },
     "image_block_public_access": {
@@ -15,7 +24,7 @@
     },
     "snapshot_block_public_access": {
       "state": {
-        "@@assign": "block-all-sharing"
+        "@@assign": "block_all_sharing"
       }
     }
   }

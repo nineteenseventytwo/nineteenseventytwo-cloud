@@ -17,7 +17,11 @@
 #      trusts `pull_request`; the apply role trusts only
 #      `environment:aws-prod`, which GitHub will not issue until the
 #      environment's protection rules have passed.
-
+#
+# No permissions block here on purpose — see the note below the inputs. The
+# repo's default token permissions are read-only (Settings > Actions >
+# General), and this workflow only ever runs with whatever contents/
+# id-token/pull-requests scopes its two callers grant, not write-all.
 on:
   workflow_call:
     inputs:
@@ -35,34 +39,20 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: read
-  id-token: write
-  pull-requests: write
-
 jobs:
   terraform:
     runs-on: ubuntu-24.04
     environment: ${{ inputs.environment }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # NOTE: these actions are pinned to major tags, not commit SHAs. Before
-      # this repo manages anything real, replace each `@vN` with the commit SHA
-      # it currently resolves to, keeping the tag in a trailing comment:
-      #
-      #   for a in actions/checkout@v7 hashicorp/setup-terraform@v4 \
-      #            aws-actions/configure-aws-credentials@v6; do
-      #     gh api "repos/${a%@*}/commits/${a#*@}" --jq "\"$a -> \(.sha)\""
-      #   done
-      #
-      # A major tag is mutable — the maintainer moves it on every release, and
-      # anyone who compromises the repo can move it too. In a job holding a
-      # role that can modify an AWS organisation, that is the worst version of
-      # this problem. Dependabot (.github/dependabot.yml) keeps the SHAs fresh
-      # once they are in place.
-      - uses: hashicorp/setup-terraform@v4
+      # Pinned to commit SHAs, not major tags — a major tag is mutable, the
+      # maintainer moves it on every release, and anyone who compromises the
+      # repo can move it too. In a job holding a role that can modify an AWS
+      # organisation, that is the worst version of this problem. Dependabot
+      # (.github/dependabot.yml) rewrites the SHA and updates this comment.
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
           terraform_version: "1.15.8"
           terraform_wrapper: false
@@ -96,7 +86,7 @@ jobs:
             echo "region=$region"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           role-to-assume: ${{ steps.target.outputs.role_arn }}
           aws-region: ${{ steps.target.outputs.region }}
