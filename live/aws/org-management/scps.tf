@@ -149,14 +149,24 @@ module "scp_sandbox_extra" {
 # wrong is a much more common failure than an IAM policy written wrong.
 # --------------------------------------------------------------------------
 
+#
+# jwks_bucket_arn: the one deliberately-public resource in the org. The RCP's
+# job is denying exactly this shape of exposure everywhere else — a NotResource
+# carve-out for the two discovery-document paths, not a broader exemption for
+# the bucket or the account, so the bucket's own policy (GetObject only, those
+# same two paths) stays the only thing actually granting anything. See
+# policies/README.md for why this is a NotResource on its own statement rather
+# than folded into the existing one: kms/secretsmanager/sqs/sts need no such
+# carve-out and this keeps them denied with no exceptions to reason about.
 module "rcp_enforce_org_principals" {
   source = "../../../modules/aws-org-policy"
 
   name        = "EnforceOrgPrincipals"
-  description = "Deny access to org resources by principals outside the org, regardless of what a bucket or key policy grants. Omits AssumeRoleWithWebIdentity — see policies/README.md."
+  description = "Deny access to org resources by principals outside the org, regardless of what a bucket or key policy grants. Omits AssumeRoleWithWebIdentity and the JWKS bucket's two discovery paths — see policies/README.md."
   type        = "RESOURCE_CONTROL_POLICY"
   content = templatefile("${path.module}/../../../policies/rcp/enforce-org-principals.json.tftpl", {
     organization_id = data.aws_organizations_organization.this.id
+    jwks_bucket_arn = "arn:aws:s3:::${module.cfg.buckets.jwks}"
   })
   target_ids = local.targets.rcp_enforce_org_principals
   tags       = module.cfg.tags
