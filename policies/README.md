@@ -24,7 +24,7 @@ than a find-and-replace across policy documents.
 | `enforce-tls` | RCP | Plaintext API calls to S3, KMS, Secrets Manager, SQS and STS | Nothing modern. Any SDK from the last decade is TLS-only |
 | `ec2-baseline` | Declarative | IMDSv1 SSRF-to-credentials, and public AMI/snapshot sharing by accident | Cannot be overridden per account, which is the feature |
 
-## The two carve-outs, and why they exist
+## The three carve-outs, and why they exist
 
 **`deny-regions-outside-allowlist` has a `NotAction` list.** Global services are
 reached through endpoints that report a region you did not ask for — most
@@ -50,6 +50,19 @@ organisation. Including that action in the RCP denies every CI job and every
 IRSA-style pod their credentials, and the failure looks like a broken trust
 policy rather than an RCP. The control for those paths is the `sub`/`aud`
 condition on the role itself.
+
+**`enforce-org-principals` also carries a `NotResource` for the JWKS bucket's
+two discovery-document paths.** `StringNotEqualsIfExists` denies a genuinely
+anonymous request too — no principal means no `aws:PrincipalOrgID` in the
+request context, and an absent key still satisfies an `...IfExists` condition.
+That is exactly the shape this RCP exists to catch everywhere else, and
+exactly what an OIDC discovery endpoint has to allow: AWS STS fetches it with
+no credentials at all, the same way it fetches Google's or GitHub's. The
+carve-out is scoped to the two object paths, not the bucket or the account, so
+the bucket's own policy — `s3:GetObject` only, those same two paths — stays
+the only thing actually granting anything. It is its own statement rather than
+folded into the existing one so `kms`/`secretsmanager`/`sqs`/`sts` keep being
+denied with no exceptions to reason about.
 
 ## Rollout order
 

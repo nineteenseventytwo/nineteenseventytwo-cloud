@@ -2,17 +2,34 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "EnforceOrgPrincipals",
+      "Sid": "EnforceOrgPrincipalsOtherServices",
       "Effect": "Deny",
       "Principal": "*",
       "Action": [
-        "s3:*",
         "kms:*",
         "secretsmanager:*",
         "sqs:*",
         "sts:AssumeRole"
       ],
       "Resource": "*",
+      "Condition": {
+        "StringNotEqualsIfExists": {
+          "aws:PrincipalOrgID": "${organization_id}"
+        },
+        "BoolIfExists": {
+          "aws:PrincipalIsAWSService": "false"
+        }
+      }
+    },
+    {
+      "Sid": "EnforceOrgPrincipalsS3",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "NotResource": [
+        "${jwks_bucket_arn}/.well-known/openid-configuration",
+        "${jwks_bucket_arn}/openid/v1/jwks"
+      ],
       "Condition": {
         "StringNotEqualsIfExists": {
           "aws:PrincipalOrgID": "${organization_id}"
