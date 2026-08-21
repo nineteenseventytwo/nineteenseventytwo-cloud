@@ -96,7 +96,7 @@ resource "aws_s3_bucket" "jwks" {
   # keep doing their job on every other bucket in the repo.
   #checkov:skip=CKV_AWS_21: versioning is enabled — see aws_s3_bucket_versioning.jwks below. Checkov graph limitation with count-indexed buckets, not a gap.
   #checkov:skip=CKV2_AWS_61: lifecycle is configured — see aws_s3_bucket_lifecycle_configuration.jwks below. Same count-indexing limitation.
-  #checkov:skip=CKV_AWS_145: deliberately the AWS-managed key, not a CMK — see the comment on aws_s3_bucket_server_side_encryption_configuration.jwks below. This bucket holds only public signing keys.
+  #checkov:skip=CKV_AWS_145: deliberately no KMS at all (SSE-S3) — see the comment on aws_s3_bucket_server_side_encryption_configuration.jwks below. KMS of any kind makes anonymous GetObject 403 regardless of the bucket policy, which is the one thing this bucket exists to allow.
   count  = var.create_jwks_bucket ? 1 : 0
   bucket = module.cfg.buckets.jwks
   tags   = module.cfg.tags
@@ -110,18 +110,27 @@ resource "aws_s3_bucket_versioning" "jwks" {
   }
 }
 
-# The AWS-managed key, not one of the two CMKs above: this bucket holds only
-# public signing keys, not anything a dedicated key's access policy is worth
-# writing for, and kms.tf's two-CMK line is about blast radius, not ticking
-# an "encrypted" box.
+# SSE-S3, not KMS of any kind — including the AWS-managed key this used to be
+# set to. Reading a KMS-encrypted object needs kms:Decrypt on that key, and a
+# KMS key policy cannot grant that to an anonymous principal the way an S3
+# bucket policy can grant s3:GetObject to "*": there is no AWS principal to
+# name. So every unauthenticated request 403'd at the decrypt step, silently,
+# with the S3 bucket policy looking completely correct — aws s3api
+# get-bucket-policy-status even reports IsPublic: true, because that check
+# only ever looks at the resource policy. Confirmed live: curl straight to
+# the REST endpoint got AccessDenied on both objects, both confirmed SSE-KMS
+# via head-object, right up until this changed.
+#
+# SSE-S3 needs no such grant — S3 decrypts transparently for anyone the
+# bucket policy already allows, which is the whole point of this bucket.
+# bucket_key_enabled is KMS-specific and meaningless here, so it is gone too.
 resource "aws_s3_bucket_server_side_encryption_configuration" "jwks" {
   count  = var.create_jwks_bucket ? 1 : 0
   bucket = aws_s3_bucket.jwks[0].id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "aws:kms"
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
