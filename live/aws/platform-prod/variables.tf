@@ -13,7 +13,7 @@ variable "create_jwks_bucket" {
 variable "publish_cluster_oidc" {
   description = "Register the cluster OIDC provider and create the IRSA-style roles. Requires create_jwks_bucket, the documents uploaded, and oidc.<domain> resolving publicly — registering a provider whose issuer URL does not resolve fails in a way that reads like a permissions error."
   type        = bool
-  default     = false
+  default     = true
 
   validation {
     condition     = var.publish_cluster_oidc ? var.create_jwks_bucket : true
