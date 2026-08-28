@@ -169,3 +169,21 @@ module "role_prowler" {
 
   tags = module.cfg.tags
 }
+
+# The "attached separately" the role's description above refers to. Prowler's
+# actual read access comes from these two AWS-managed policies, not the
+# inline one above (which only adds the findings-bucket write) - the
+# aws-cluster-oidc-role module takes inline policy_json only, so a scanner
+# needing broad read access is attached the same way any other role gets a
+# managed policy: directly, alongside the module rather than inside it.
+resource "aws_iam_role_policy_attachment" "prowler_security_audit" {
+  count      = var.publish_cluster_oidc && var.enable_prowler_role ? 1 : 0
+  role       = module.role_prowler[0].name
+  policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
+}
+
+resource "aws_iam_role_policy_attachment" "prowler_view_only" {
+  count      = var.publish_cluster_oidc && var.enable_prowler_role ? 1 : 0
+  role       = module.role_prowler[0].name
+  policy_arn = "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"
+}
