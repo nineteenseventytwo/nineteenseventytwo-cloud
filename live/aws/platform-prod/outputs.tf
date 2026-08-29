@@ -49,7 +49,6 @@ output "cluster_oidc_provider_arn" {
 output "cluster_role_arns" {
   description = "IRSA-style role ARNs by workload, for the ServiceAccount annotations in the platform repo."
   value = {
-    argocd_sops     = try(module.role_argocd_sops[0].arn, null)
     vault_unseal    = try(module.role_vault_unseal[0].arn, null)
     longhorn_backup = try(module.role_longhorn_backup[0].arn, null)
     prowler         = try(module.role_prowler[0].arn, null)
