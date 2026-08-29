@@ -122,10 +122,7 @@ a load-bearing control, so set a required reviewer on it.
 
 Known outstanding, before this manages anything real:
 - **The staged SCPs.** `DenyRegionsOutsideAllowlist` and
-  `DenyExpensiveResources` attach to the sandbox account only. Widen to the OU,
-  then the root, watching CloudTrail between steps
-  ([policies/README.md](policies/README.md#rollout-order)).
-- **`cluster/vault/values.yaml` in the platform repo** passes
-  `AWS_ACCESS_KEY_ID` to Vault for KMS auto-unseal. That is the exact
-  credential this repo exists to eliminate; replace it with the
-  `cluster-vault-unseal` role once the cluster OIDC provider is registered.
+  `DenyExpensiveResources` widened from the sandbox account to the Sandbox OU
+  on 2026-08-29 (11 days quiet at the account level first). Last step: the
+  root, once the same CloudTrail check comes back clean at this wider blast
+  radius ([policies/README.md](policies/README.md#rollout-order)).

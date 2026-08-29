@@ -31,10 +31,13 @@ locals {
     deny_security_service_tampering = [local.root_id]
 
     # STAGED. Both of these can break a legitimate apply if a resource turns
-    # out to live somewhere unexpected. Start at the sandbox account, widen to
-    # [local.ou_ids["Sandbox"]], then to [local.root_id].
-    deny_regions_outside_allowlist = [local.account_ids["sandbox"]]
-    deny_expensive_resources       = [local.account_ids["sandbox"]]
+    # out to live somewhere unexpected. Widened to the Sandbox OU 2026-08-29
+    # after 11 days at the sandbox account alone with a clean CloudTrail
+    # (`cloudtrail lookup-events` for AccessDenied, 14-day lookback, empty).
+    # Next and last: [local.root_id], after the same check against this
+    # wider blast radius.
+    deny_regions_outside_allowlist = [local.ou_ids["Sandbox"]]
+    deny_expensive_resources       = [local.ou_ids["Sandbox"]]
 
     # Sandbox only, by definition.
     sandbox_extra_restrictions = [local.account_ids["sandbox"]]
