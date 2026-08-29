@@ -21,33 +21,6 @@ resource "aws_iam_openid_connect_provider" "cluster" {
 # that pod's permissions and no others.
 # --------------------------------------------------------------------------
 
-data "aws_iam_policy_document" "argocd_sops" {
-  statement {
-    sid       = "DecryptSopsSecrets"
-    effect    = "Allow"
-    actions   = ["kms:Decrypt", "kms:DescribeKey"]
-    resources = [aws_kms_key.sops.arn]
-  }
-}
-
-module "role_argocd_sops" {
-  count  = var.publish_cluster_oidc ? 1 : 0
-  source = "../../../modules/aws-cluster-oidc-role"
-
-  name              = "cluster-argocd-sops"
-  description       = "Argo CD repo-server decrypting SOPS-with-KMS secrets during reconciliation."
-  oidc_provider_arn = local.cluster_oidc_provider_arn
-  issuer_url        = module.cfg.cluster.oidc_issuer
-  audience          = module.cfg.cluster.audience
-  policy_json       = data.aws_iam_policy_document.argocd_sops.json
-
-  service_accounts = [
-    { namespace = "argocd", name = "argocd-repo-server" },
-  ]
-
-  tags = module.cfg.tags
-}
-
 # Encrypt as well as decrypt: Vault's seal wraps its own key material with this
 # CMK on every seal, not just on unseal.
 data "aws_iam_policy_document" "vault_unseal" {
