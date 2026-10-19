@@ -13,6 +13,11 @@ output "github" {
   value       = local.raw.github
 }
 
+output "site" {
+  description = "The website: its repo, that repo's immutable numeric ID for the OIDC sub claim, the protected environment its deploy runs in, and the public hostname. Separate from `github` because this repo deploys content, not Terraform."
+  value       = local.raw.site
+}
+
 output "state" {
   description = "Terraform state backend: bucket, key prefix and the KMS alias the bucket is encrypted with."
   value       = local.raw.state

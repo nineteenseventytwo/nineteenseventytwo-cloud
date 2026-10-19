@@ -26,7 +26,11 @@
     "  gh api repos/OWNER/REPO --jq .id",
     "  gh api orgs/OWNER --jq .id",
     "A trust policy built from the plain slugs silently mismatches and every",
-    "AssumeRoleWithWebIdentity call fails with AccessDenied."
+    "AssumeRoleWithWebIdentity call fails with AccessDenied.",
+    "",
+    "The `github` block is this repo — the one that owns the Terraform. `site`",
+    "is a second repo that deploys content only, and its repo_id follows the",
+    "same rule and the same lookup."
   ],
   "org": {
     "name": "nineteenseventytwo",
@@ -47,6 +51,12 @@
     "repo": "nineteenseventytwo-cloud",
     "repo_id": "1335676616",
     "environment": "aws-prod"
+  },
+  "site": {
+    "repo": "nineteenseventytwo-web",
+    "repo_id": "1386955017",
+    "environment": "aws-prod",
+    "hostname": "mark.eightbitsaxlounge.com"
   },
   "state": {
     "bucket": "nineteenseventytwo-tfstate-617464676730",
