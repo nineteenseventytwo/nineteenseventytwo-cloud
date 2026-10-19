@@ -56,7 +56,7 @@
     "repo": "nineteenseventytwo-web",
     "repo_id": "1386955017",
     "environment": "aws-prod",
-    "hostname": "mark.eightbitsaxlounge.com"
+    "hostname": "sev.eightbitsaxlounge.com"
   },
   "state": {
     "bucket": "nineteenseventytwo-tfstate-617464676730",
