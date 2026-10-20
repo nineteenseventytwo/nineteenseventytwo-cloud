@@ -64,3 +64,29 @@ output "private_subnet_ids" {
   description = "Private subnet IDs for the Tailscale subnet router and any future cloud worker."
   value       = aws_subnet.private[*].id
 }
+
+output "site_bucket" {
+  description = "The website's bucket. The web repo's deploy workflow syncs into it."
+  value       = aws_s3_bucket.site.id
+}
+
+output "site_deploy_role_arn" {
+  description = "Role the web repo's deploy job assumes (environment aws-prod only)."
+  value       = module.role_site_deploy.arn
+}
+
+output "site_certificate_status" {
+  description = "PENDING_VALIDATION until the record below exists in Cloudflare; ISSUED after."
+  value       = aws_acm_certificate.site.status
+}
+
+output "site_certificate_validation" {
+  description = "Add in Cloudflare as a CNAME, DNS only (grey cloud), not proxied."
+  value = [
+    for o in aws_acm_certificate.site.domain_validation_options : {
+      name  = o.resource_record_name
+      type  = o.resource_record_type
+      value = o.resource_record_value
+    }
+  ]
+}
