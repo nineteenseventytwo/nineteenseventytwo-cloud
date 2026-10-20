@@ -119,12 +119,21 @@ data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
 
+# The bucket ARN is built from its configured name, not read from
+# aws_s3_bucket.site.arn: the role module creates its inline policy with
+# `count = inline_policy_json == null ? 0 : 1`, and a policy that depends on
+# a not-yet-created bucket makes that count unknowable at plan time
+# ("Invalid count argument"). S3 bucket ARNs are a pure function of the name.
+locals {
+  site_bucket_arn = "arn:aws:s3:::${module.cfg.buckets.site}"
+}
+
 data "aws_iam_policy_document" "site_deploy" {
   statement {
     sid       = "ListSiteBucket"
     effect    = "Allow"
     actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.site.arn]
+    resources = [local.site_bucket_arn]
   }
 
   # Put and Delete: a deploy is `aws s3 sync --delete`, which removes pages
@@ -133,7 +142,7 @@ data "aws_iam_policy_document" "site_deploy" {
     sid       = "WriteSiteObjects"
     effect    = "Allow"
     actions   = ["s3:PutObject", "s3:DeleteObject"]
-    resources = ["${aws_s3_bucket.site.arn}/*"]
+    resources = ["${local.site_bucket_arn}/*"]
   }
 }
 
