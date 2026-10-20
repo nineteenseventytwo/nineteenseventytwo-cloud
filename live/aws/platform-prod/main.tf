@@ -30,6 +30,17 @@ provider "aws" {
   }
 }
 
+# CloudFront only accepts certificates from us-east-1. Used by site.tf's
+# certificate and nothing else; everything else in this stack stays in the
+# primary region.
+provider "aws" {
+  alias  = "us_east_1"
+  region = module.cfg.regions.global
+  default_tags {
+    tags = module.cfg.tags
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 # The JWKS bucket is public by design, so the account-level public access block
