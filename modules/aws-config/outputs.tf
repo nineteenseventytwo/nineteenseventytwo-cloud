@@ -69,6 +69,7 @@ output "buckets" {
     prowler    = "${local.raw.org.name}-prowler-${local.raw.accounts["security"].id}"
     jwks       = "${local.raw.org.name}-oidc-${local.raw.accounts["platform-prod"].id}"
     longhorn   = "${local.raw.org.name}-longhorn-backups-${local.raw.accounts["platform-prod"].id}"
+    site       = "${local.raw.org.name}-site-${local.raw.accounts["platform-prod"].id}"
   }
 }
 

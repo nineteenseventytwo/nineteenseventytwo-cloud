@@ -166,4 +166,19 @@ data "aws_iam_policy_document" "apply_platform_prod" {
     ]
     resources = ["*"]
   }
+
+  # The website (platform ADR-0018, plan 09 W.1): CloudFront in front of a
+  # private S3 bucket, with its ACM certificate in us-east-1 (CloudFront
+  # requires it there; us-east-1 is in regions.allowed, so the region SCP
+  # permits it). Without these the apply role can create the bucket and the
+  # deploy role but not the distribution or the certificate.
+  statement {
+    sid    = "SiteDelivery"
+    effect = "Allow"
+    actions = [
+      "cloudfront:*",
+      "acm:*",
+    ]
+    resources = ["*"]
+  }
 }
