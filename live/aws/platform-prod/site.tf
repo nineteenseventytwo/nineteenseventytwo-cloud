@@ -1,11 +1,17 @@
 # The website: sev.eightbitsaxlounge.com (platform ADR-0018, plan 09 W.1).
 #
 # Static files in a private bucket, served by CloudFront through Origin
-# Access Control. This file is step one of two: the bucket, the certificate
-# and the deploy role. The distribution, its OAC, the bucket policy that
-# admits it and the response-headers policy follow once the certificate has
-# validated - DNS for this zone is managed by hand in Cloudflare, so a single
-# apply would sit waiting on a record nobody has created yet.
+# Access Control. Built in two applies because DNS for this zone is managed
+# by hand in Cloudflare: the bucket, certificate and deploy role first, then -
+# once the certificate's validation record existed and it was ISSUED - the
+# distribution, its OAC, the bucket policy that admits it and the security
+# headers. A single apply would have sat waiting on a record nobody had
+# created yet.
+#
+# Two manual Cloudflare records, both in the eightbitsaxlounge.com zone:
+#   ACM validation CNAME   DNS only (grey cloud), permanent - renewals use it
+#   sev CNAME -> the distribution's domain (output site_distribution_domain),
+#                proxied (orange cloud), zone SSL mode Full (strict)
 #
 # Not the sandbox account: sandbox is nuked on a schedule (plan 09, F4).
 #
@@ -161,4 +167,221 @@ module "role_site_deploy" {
   inline_policy_json = data.aws_iam_policy_document.site_deploy.json
 
   tags = module.cfg.tags
+}
+
+# --------------------------------------------------------------------------
+# Distribution
+# --------------------------------------------------------------------------
+
+resource "aws_cloudfront_origin_access_control" "site" {
+  name                              = "site"
+  description                       = "CloudFront -> the website bucket, SigV4-signed on every request."
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_function" "site_index" {
+  name    = "site-index"
+  runtime = "cloudfront-js-2.0"
+  comment = "Directory URLs -> index.html; extensionless paths -> trailing slash."
+  publish = true
+  code    = file("${path.module}/functions/site-index.js")
+}
+
+# Every response carries these, set at the edge so no page can omit one.
+# The CSP is the strict one plan 09 F10 asks for: 'self' only, no
+# 'unsafe-inline' anywhere - the web repo's build fails on any inline script
+# or style, so the two are enforced from both ends. connect-src 'self' is for
+# the events page fetching /events.json from this same origin (W.4).
+resource "aws_cloudfront_response_headers_policy" "site" {
+  #checkov:skip=CKV_AWS_259: HSTS is set (2y, override) but deliberately without includeSubDomains/preload - sev is one host in a zone whose other subdomains are not this site's to pin, and preload is effectively irreversible.
+  name    = "site-security-headers"
+  comment = "HSTS, CSP, and the rest of the standard set for sev.eightbitsaxlounge.com."
+
+  security_headers_config {
+    strict_transport_security {
+      # Two years. Not includeSubdomains: this is one host in a zone with
+      # others, and HSTS on the parent's subdomains is not this site's call.
+      access_control_max_age_sec = 63072000
+      include_subdomains         = false
+      preload                    = false
+      override                   = true
+    }
+    content_security_policy {
+      content_security_policy = join("; ", [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "img-src 'self'",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "upgrade-insecure-requests",
+      ])
+      override = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+
+  # No first-class field for this one.
+  custom_headers_config {
+    items {
+      header   = "Permissions-Policy"
+      value    = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+      override = true
+    }
+  }
+}
+
+data "aws_cloudfront_cache_policy" "optimized" {
+  name = "Managed-CachingOptimized"
+}
+
+#trivy:ignore:AVD-AWS-0011
+resource "aws_cloudfront_distribution" "site" {
+  # Cloudflare's WAF sits in front of this (the sev record is proxied, W4);
+  # a second, metered WAF here would filter traffic that already passed one.
+  #checkov:skip=CKV_AWS_68: WAF is Cloudflare's, in front of this distribution (plan 09 W4).
+  #checkov:skip=CKV2_AWS_47: same - no AWS WAF, so no Log4j rule group to attach.
+  #checkov:skip=CKV_AWS_86: no access logging - a static personal site; Cloudflare analytics covers it, and logs are a metered bucket for nobody to read.
+  #checkov:skip=CKV_AWS_310: one origin by design; failover would be a second bucket kept in sync for a personal site.
+  #checkov:skip=CKV_AWS_374: public website, no geo restriction.
+  enabled             = true
+  is_ipv6_enabled     = true
+  http_version        = "http2and3"
+  comment             = "sev.eightbitsaxlounge.com (platform ADR-0018)"
+  aliases             = [module.cfg.site.hostname]
+  default_root_object = "index.html"
+
+  # North America and Europe edges only - where the audience is, and the
+  # cheapest class.
+  price_class = "PriceClass_100"
+
+  origin {
+    origin_id                = "site-bucket"
+    domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.site.id
+  }
+
+  default_cache_behavior {
+    target_origin_id           = "site-bucket"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = data.aws_cloudfront_cache_policy.optimized.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.site.id
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.site_index.arn
+    }
+  }
+
+  # A missing key comes back from S3 as 403, not 404: OAC has no ListBucket,
+  # so S3 will not say whether the key exists. Both become the site's own
+  # 404 page with a real 404 status.
+  custom_error_response {
+    error_code            = 403
+    response_code         = 404
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 60
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 404
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 60
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    acm_certificate_arn      = aws_acm_certificate.site.arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
+  }
+
+  tags = module.cfg.tags
+}
+
+# The bucket admits this one distribution and nothing else. The
+# cloudfront.amazonaws.com service principal is outside the org; see the
+# header for why the org RCP still lets it through (F1).
+data "aws_iam_policy_document" "site_bucket" {
+  statement {
+    sid       = "CloudFrontReadViaOAC"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.site.arn}/*"]
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.site.arn]
+    }
+  }
+
+  statement {
+    sid       = "DenyInsecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.site.arn, "${aws_s3_bucket.site.arn}/*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "site" {
+  bucket = aws_s3_bucket.site.id
+  policy = data.aws_iam_policy_document.site_bucket.json
+
+  depends_on = [aws_s3_bucket_public_access_block.site]
+}
+
+# The deploy role's invalidation grant, attached outside the module: the
+# distribution ARN is unknown until apply, and the module's inline policy is
+# count-gated on its input (same trap as the bucket ARN above).
+data "aws_iam_policy_document" "site_deploy_invalidate" {
+  statement {
+    sid       = "InvalidateSiteDistribution"
+    effect    = "Allow"
+    actions   = ["cloudfront:CreateInvalidation"]
+    resources = [aws_cloudfront_distribution.site.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "site_deploy_invalidate" {
+  name   = "gha-site-deploy-invalidate"
+  role   = module.role_site_deploy.name
+  policy = data.aws_iam_policy_document.site_deploy_invalidate.json
 }
