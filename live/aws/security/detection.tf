@@ -43,6 +43,19 @@ resource "aws_guardduty_detector_feature" "this" {
   detector_id = aws_guardduty_detector.this.id
   name        = each.key
   status      = each.value
+
+  # AWS adds sub-features under existing features on its own schedule -
+  # RDS_DATA_RISK appeared under RDS_LOGIN_EVENTS in 2026-10, reported
+  # DISABLED / NONE. Undeclared, it plans as a removal that forces the org
+  # feature to be replaced on every apply, and AWS reports it straight back.
+  # Declaring it is not possible: the provider validates sub-feature names
+  # against a fixed list that does not include it yet ("expected name to be
+  # one of EKS_ADDON_MANAGEMENT ..."). None of this config sets any
+  # additional_configuration, so ignoring the attribute loses nothing - the
+  # parent feature's status is still enforced.
+  lifecycle {
+    ignore_changes = [additional_configuration]
+  }
 }
 
 # Auto-enable for every account, including ones that do not exist yet. A new
@@ -61,6 +74,11 @@ resource "aws_guardduty_organization_configuration_feature" "this" {
   auto_enable = each.value == "ENABLED" ? "ALL" : "NONE"
 
   depends_on = [aws_guardduty_organization_configuration.this]
+
+  # Same reason as aws_guardduty_detector_feature.this above.
+  lifecycle {
+    ignore_changes = [additional_configuration]
+  }
 }
 
 # External access: what in any account in the organisation can be reached from
