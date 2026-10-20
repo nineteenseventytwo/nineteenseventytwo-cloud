@@ -38,6 +38,9 @@ resource "aws_s3_bucket_versioning" "site" {
 # the CloudFront service principal kms:Decrypt; the content here is a public
 # website, so a customer key would protect nothing and add a second policy
 # that has to stay in step with the distribution.
+# Scoped here rather than in .trivyignore, which would also hide a genuinely
+# missing CMK on any future bucket.
+#trivy:ignore:AVD-AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "site" {
   bucket = aws_s3_bucket.site.id
   rule {
