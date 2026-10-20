@@ -57,6 +57,15 @@ TF_ENV            = AWS_REGION=$(PRIMARY_REGION) $(AWS_PROFILE_ARG)
 # relative paths in the code (../../../config/aws.json) mean one thing only.
 TF                = $(TF_ENV) $(TERRAFORM) -chdir=$(STACK_DIR)
 
+# Wait for the state lock instead of failing on it. A push to main starts
+# terraform-plan and terraform-apply together, in separate concurrency groups,
+# and both lock the same state: whichever reaches a stack second used to fail
+# outright ("Error acquiring the state lock ... OperationTypePlan"), which is
+# how #27's apply died at org-management on 2026-10-20 while a plan held the
+# lock for ~15s. A plan holds it for seconds; five minutes is ample and still
+# fails loudly on a genuinely stuck lock.
+LOCK_TIMEOUT      ?= 5m
+
 BACKEND_ARGS      = -backend-config="bucket=$(STATE_BUCKET)" \
                     -backend-config="key=$(STATE_PREFIX)/$(STACK)/terraform.tfstate" \
                     -backend-config="region=$(PRIMARY_REGION)" \
@@ -212,12 +221,12 @@ init: require-stack require-state ## terraform init for one stack. Usage: make i
 .PHONY: plan
 plan: init ## terraform plan for one stack. Usage: make plan STACK=security
 	@mkdir -p $(BUILD_DIR)
-	$(TF) plan -out=$(CURDIR)/$(BUILD_DIR)/$(STACK).tfplan
+	$(TF) plan -lock-timeout=$(LOCK_TIMEOUT) -out=$(CURDIR)/$(BUILD_DIR)/$(STACK).tfplan
 
 .PHONY: apply
 apply: ## Apply the plan produced by `make plan STACK=...`
 	@test -f $(BUILD_DIR)/$(STACK).tfplan || { echo "no plan for $(STACK) — run: make plan STACK=$(STACK)"; exit 1; }
-	$(TF) apply $(CURDIR)/$(BUILD_DIR)/$(STACK).tfplan
+	$(TF) apply -lock-timeout=$(LOCK_TIMEOUT) $(CURDIR)/$(BUILD_DIR)/$(STACK).tfplan
 
 .PHONY: destroy
 destroy: init ## Destroy one stack. Deliberately not wired into CI.
