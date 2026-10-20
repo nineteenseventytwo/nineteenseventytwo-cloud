@@ -90,3 +90,13 @@ output "site_certificate_validation" {
     }
   ]
 }
+
+output "site_distribution_id" {
+  description = "Set as CLOUDFRONT_DISTRIBUTION_ID in the web repo's Actions variables."
+  value       = aws_cloudfront_distribution.site.id
+}
+
+output "site_distribution_domain" {
+  description = "Target for the sev CNAME in Cloudflare (proxied, SSL mode Full (strict))."
+  value       = aws_cloudfront_distribution.site.domain_name
+}
