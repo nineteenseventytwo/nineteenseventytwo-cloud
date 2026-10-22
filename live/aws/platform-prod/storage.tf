@@ -38,6 +38,37 @@ resource "aws_s3_bucket_public_access_block" "longhorn" {
   restrict_public_buckets = true
 }
 
+# Deny anything not over TLS - the same statement the JWKS and site buckets
+# carry. Longhorn's client always uses HTTPS, so this changes nothing for it;
+# it makes "these backups are only ever moved encrypted" a property of the
+# bucket rather than of whichever client is talking to it. Flagged by Prowler
+# (s3_bucket_secure_transport_policy, 2026-10-22) - this bucket holds Vault's
+# storage backups, among others.
+data "aws_iam_policy_document" "longhorn" {
+  statement {
+    sid       = "DenyInsecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.longhorn.arn, "${aws_s3_bucket.longhorn.arn}/*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "longhorn" {
+  bucket = aws_s3_bucket.longhorn.id
+  policy = data.aws_iam_policy_document.longhorn.json
+
+  depends_on = [aws_s3_bucket_public_access_block.longhorn]
+}
+
 # The ceiling the cost model asks for. Backups older than this are not a
 # recovery story anybody is going to use; the cluster is rebuilt from git.
 resource "aws_s3_bucket_lifecycle_configuration" "longhorn" {

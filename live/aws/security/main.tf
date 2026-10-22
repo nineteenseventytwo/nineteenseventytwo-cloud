@@ -32,6 +32,16 @@ provider "aws" {
   }
 }
 
+# us-east-1, for the second GuardDuty detector (detection.tf). Allowed by the
+# region SCP; nothing else in this stack uses it.
+provider "aws" {
+  alias  = "global"
+  region = module.cfg.regions.global
+  default_tags {
+    tags = module.cfg.tags
+  }
+}
+
 data "aws_caller_identity" "current" {}
 data "aws_organizations_organization" "this" {}
 
