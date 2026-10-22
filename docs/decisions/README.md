@@ -12,6 +12,7 @@ the inconvenient ones.
 | [0004](ADR-0004-committed-account-ids.md) | Account IDs are committed in `config/aws.json` | Accepted |
 | [0005](ADR-0005-prowler-over-config-security-hub.md) | Prowler on a schedule instead of AWS Config and Security Hub | Accepted |
 | [0006](ADR-0006-public-cluster-oidc-issuer.md) | A public OIDC issuer for cluster→AWS federation | Accepted |
+| [0007](ADR-0007-keep-organization-account-access-role.md) | Keep OrganizationAccountAccessRole; alarm on every use | Accepted |
 
 The landing zone's own decision log — regions, the identity model, the SCP
 list — lives in [01-aws-landing-zone.md](../01-aws-landing-zone.md). ADRs here
