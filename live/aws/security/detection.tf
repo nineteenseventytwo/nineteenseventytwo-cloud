@@ -95,6 +95,7 @@ resource "aws_guardduty_organization_configuration_feature" "this" {
 # first is the order eu-west-2 was built in.
 
 resource "aws_guardduty_detector" "global" {
+  #checkov:skip=CKV2_AWS_3: org configuration for us-east-1 is step 2 (delegation, then auto-enable), deliberately after this detector exists - see the comment above. Remove this skip in that PR.
   provider                     = aws.global
   enable                       = true
   finding_publishing_frequency = "SIX_HOURS"
