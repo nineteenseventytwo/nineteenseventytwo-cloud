@@ -30,3 +30,14 @@ resource "aws_cloudtrail_organization_delegated_admin_account" "security" {
 resource "aws_guardduty_organization_admin_account" "security" {
   admin_account_id = local.account_ids["security"]
 }
+
+# GuardDuty is regional, and so is its delegated administrator. us-east-1 is
+# the other allowed region and holds live resources (the website's ACM
+# certificate); Prowler flagged it uncovered on 2026-10-22. The security
+# account's own us-east-1 detector was created first (security/detection.tf,
+# cloud #29), because designating an admin auto-creates one in that account
+# and region and would have collided with it.
+resource "aws_guardduty_organization_admin_account" "security_global" {
+  provider         = aws.global
+  admin_account_id = local.account_ids["security"]
+}
