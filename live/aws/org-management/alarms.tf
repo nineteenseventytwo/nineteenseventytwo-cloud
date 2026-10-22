@@ -1,6 +1,6 @@
-# Alerting on the two sign-ins that should never be routine.
+# Alerting on the sign-ins that should never be routine.
 #
-# Root, and BreakGlassAdmin. Naming a role "break glass" only means something
+# Root, BreakGlassAdmin, and OrganizationAccountAccessRole (ADR-0007). Naming a role "break glass" only means something
 # if using it makes a noise; otherwise it is just the role with the most
 # permissions and the shortest name to type.
 #
@@ -147,6 +147,42 @@ resource "aws_sns_topic_policy" "security_alerts_primary" {
 
 resource "aws_cloudwatch_event_target" "break_glass_assumed" {
   rule      = aws_cloudwatch_event_rule.break_glass_assumed.name
+  target_id = "sns"
+  arn       = aws_sns_topic.security_alerts_primary.arn
+}
+
+# OrganizationAccountAccessRole: the full-admin role Organizations created in
+# every member account, assumable from this one. Kept on purpose (ADR-0007) -
+# the bootstrap foundation stack uses it, and it is the way back in if
+# Identity Center breaks - so, like BreakGlassAdmin, using it has to make a
+# noise. Every `make bootstrap-foundation-apply` will alert; that is rare, and
+# the alert should line up with a bootstrap change someone knows about.
+#
+# Matched here, in the management account, because every assumption of this
+# role is a call *from* this account into a member - CloudTrail records it on
+# the caller's side. Primary region, like break_glass_assumed: the CLI and
+# Terraform use the regional STS endpoint, so these calls land in eu-west-2.
+resource "aws_cloudwatch_event_rule" "org_access_role_assumed" {
+  name        = "${module.cfg.org.name}-org-access-role-assumed"
+  description = "Someone assumed OrganizationAccountAccessRole in a member account (ADR-0007)."
+
+  event_pattern = jsonencode({
+    source      = ["aws.sts"]
+    detail-type = ["AWS API Call via CloudTrail"]
+    detail = {
+      eventSource = ["sts.amazonaws.com"]
+      eventName   = ["AssumeRole"]
+      requestParameters = {
+        roleArn = [{ "wildcard" = "arn:aws:iam::*:role/OrganizationAccountAccessRole" }]
+      }
+    }
+  })
+
+  tags = module.cfg.tags
+}
+
+resource "aws_cloudwatch_event_target" "org_access_role_assumed" {
+  rule      = aws_cloudwatch_event_rule.org_access_role_assumed.name
   target_id = "sns"
   arn       = aws_sns_topic.security_alerts_primary.arn
 }
