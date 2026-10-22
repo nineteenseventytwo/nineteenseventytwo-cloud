@@ -82,11 +82,17 @@ resource "aws_guardduty_organization_configuration_feature" "this" {
 }
 
 # ---- us-east-1 ---------------------------------------------------------------
-# The same detector, organisation auto-enable and feature set in the other
-# allowed region. Delegated to this account by org-management
-# (aws_guardduty_organization_admin_account.security_global), which applies
-# first. Global-service events (IAM, STS, CloudFront) land in us-east-1, so
-# this detector also sees those.
+# The same detector and feature set in the other allowed region. Global-service
+# events (IAM, STS, CloudFront) land in us-east-1, so this detector also sees
+# those. Prowler flagged the gap (guardduty_is_enabled, 2026-10-22).
+#
+# This account's own detector only, for now. Making it the organisation's
+# delegated admin in us-east-1 (org-management) and turning on org auto-enable
+# here is the second step, and it has to be second: designating a delegated
+# admin auto-enables GuardDuty - creates a detector - in that account and
+# region, so if the designation ran first (org-management applies before this
+# stack) the detector below would fail as "already exists". Creating it here
+# first is the order eu-west-2 was built in.
 
 resource "aws_guardduty_detector" "global" {
   provider                     = aws.global
@@ -102,27 +108,6 @@ resource "aws_guardduty_detector_feature" "global" {
   detector_id = aws_guardduty_detector.global.id
   name        = each.key
   status      = each.value
-
-  lifecycle {
-    ignore_changes = [additional_configuration]
-  }
-}
-
-resource "aws_guardduty_organization_configuration" "global" {
-  provider                         = aws.global
-  detector_id                      = aws_guardduty_detector.global.id
-  auto_enable_organization_members = "ALL"
-}
-
-resource "aws_guardduty_organization_configuration_feature" "global" {
-  provider = aws.global
-  for_each = local.guardduty_features
-
-  detector_id = aws_guardduty_detector.global.id
-  name        = each.key
-  auto_enable = each.value == "ENABLED" ? "ALL" : "NONE"
-
-  depends_on = [aws_guardduty_organization_configuration.global]
 
   lifecycle {
     ignore_changes = [additional_configuration]
