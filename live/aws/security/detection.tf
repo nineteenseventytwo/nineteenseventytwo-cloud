@@ -81,6 +81,82 @@ resource "aws_guardduty_organization_configuration_feature" "this" {
   }
 }
 
+# ---- us-east-1 ---------------------------------------------------------------
+# The same detector, organisation auto-enable and feature set in the other
+# allowed region. Delegated to this account by org-management
+# (aws_guardduty_organization_admin_account.security_global), which applies
+# first. Global-service events (IAM, STS, CloudFront) land in us-east-1, so
+# this detector also sees those.
+
+resource "aws_guardduty_detector" "global" {
+  provider                     = aws.global
+  enable                       = true
+  finding_publishing_frequency = "SIX_HOURS"
+  tags                         = module.cfg.tags
+}
+
+resource "aws_guardduty_detector_feature" "global" {
+  provider = aws.global
+  for_each = local.guardduty_features
+
+  detector_id = aws_guardduty_detector.global.id
+  name        = each.key
+  status      = each.value
+
+  lifecycle {
+    ignore_changes = [additional_configuration]
+  }
+}
+
+resource "aws_guardduty_organization_configuration" "global" {
+  provider                         = aws.global
+  detector_id                      = aws_guardduty_detector.global.id
+  auto_enable_organization_members = "ALL"
+}
+
+resource "aws_guardduty_organization_configuration_feature" "global" {
+  provider = aws.global
+  for_each = local.guardduty_features
+
+  detector_id = aws_guardduty_detector.global.id
+  name        = each.key
+  auto_enable = each.value == "ENABLED" ? "ALL" : "NONE"
+
+  depends_on = [aws_guardduty_organization_configuration.global]
+
+  lifecycle {
+    ignore_changes = [additional_configuration]
+  }
+}
+
+# ---- suppression --------------------------------------------------------------
+# The cluster's OIDC discovery bucket is public by design (ADR-0006: STS fetches
+# the JWKS anonymously), so "anonymous access granted" on it is the design, not
+# an incident. Left open, that one High finding sat beside any real one and
+# looked identical (it had been open since the bucket's first apply,
+# 2026-08-20). Archived automatically - scoped to this finding type on this
+# one bucket, so the same finding anywhere else still alerts.
+resource "aws_guardduty_filter" "oidc_bucket_public_by_design" {
+  name        = "oidc-bucket-public-by-design"
+  description = "OIDC discovery bucket is public by design (ADR-0006)."
+  detector_id = aws_guardduty_detector.this.id
+  action      = "ARCHIVE"
+  rank        = 1
+
+  finding_criteria {
+    criterion {
+      field  = "type"
+      equals = ["Policy:S3/BucketAnonymousAccessGranted"]
+    }
+    criterion {
+      field  = "resource.s3BucketDetails.name"
+      equals = [module.cfg.buckets.jwks]
+    }
+  }
+
+  tags = module.cfg.tags
+}
+
 # External access: what in any account in the organisation can be reached from
 # outside it. Organisation-scoped, so it sees across account boundaries — which
 # is exactly where an over-broad bucket or role trust policy hides.

@@ -30,3 +30,13 @@ resource "aws_cloudtrail_organization_delegated_admin_account" "security" {
 resource "aws_guardduty_organization_admin_account" "security" {
   admin_account_id = local.account_ids["security"]
 }
+
+# GuardDuty is regional, and so is its delegated administrator. us-east-1 is
+# the other allowed region (regions.allowed) and now holds live resources - the
+# website's ACM certificate - so it gets the same coverage; otherwise it is the
+# one place stolen credentials could be used with nothing watching. Prowler
+# flagged it (guardduty_is_enabled, us-east-1, 2026-10-22).
+resource "aws_guardduty_organization_admin_account" "security_global" {
+  provider         = aws.global
+  admin_account_id = local.account_ids["security"]
+}
