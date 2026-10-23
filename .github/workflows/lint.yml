@@ -69,11 +69,16 @@ jobs:
           sudo apt-get update && sudo apt-get install -y shellcheck
           make lint-shell
 
+  # No code-scanning upload: this repo is private (platform ADR-0019), and
+  # SARIF upload to a private repo needs GitHub's paid Code Security.
+  # Checkov stays the blocking IaC gate it always was; secrets now block too;
+  # Trivy's misconfig findings - which code scanning used to turn into a
+  # failing "new alert" check - are advisory in the job summary, because a
+  # plain exit code cannot tell new findings from the existing ones.
   security:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v7
 
@@ -84,21 +89,36 @@ jobs:
         uses: bridgecrewio/checkov-action@v12
         with:
           config_file: .checkov.yaml
-          output_format: cli,sarif
-          output_file_path: console,checkov.sarif
+          output_format: cli
 
-      - name: Trivy - secrets and misconfiguration
+      # Secrets block, at every severity.
+      - name: Trivy secret scan (blocking)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
-          scanners: secret,misconfig
-          format: sarif
-          output: trivy.sarif
+          scanners: secret
+          exit-code: "1"
+          format: table
+          trivyignores: ${{ github.workspace }}/.trivyignore
+
+      - name: Trivy misconfiguration (advisory)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: misconfig
+          format: table
+          output: trivy.txt
           severity: HIGH,CRITICAL
           trivyignores: ${{ github.workspace }}/.trivyignore
 
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v4
+      - name: Summary
         if: always()
-        with:
-          sarif_file: .
+        run: |
+          {
+            echo "## Trivy - misconfiguration (advisory)"
+            echo
+            echo '```'
+            if [ -s trivy.txt ]; then head -c 60000 trivy.txt; else echo "no findings"; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
