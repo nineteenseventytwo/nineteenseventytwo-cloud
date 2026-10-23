@@ -315,10 +315,17 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
+  # TLS 1.3 only, which is what enables CloudFront's hybrid post-quantum key
+  # exchange (X25519MLKEM768). The viewer here is Cloudflare's edge - the sev
+  # record is proxied - and Cloudflare speaks TLS 1.3 to origins and leads
+  # with X25519MLKEM768 by default, so this makes the Cloudflare -> CloudFront
+  # leg post-quantum; visitors already get it from Cloudflare. A TLS 1.2-only
+  # client hitting the *.cloudfront.net name directly is refused, which is
+  # fine: nothing should. Prowler: cloudfront_distributions_pqc_tls_enabled.
   viewer_certificate {
     acm_certificate_arn      = aws_acm_certificate.site.arn
     ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
+    minimum_protocol_version = "TLSv1.3_2025"
   }
 
   tags = module.cfg.tags
