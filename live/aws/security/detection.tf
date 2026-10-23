@@ -171,6 +171,18 @@ resource "aws_accessanalyzer_analyzer" "org_external" {
   tags          = module.cfg.tags
 }
 
+# The same analyzer in us-east-1. Analyzers are regional - they see the
+# resources in their own region - and us-east-1 is the other allowed region,
+# where this estate now has resources (the site's ACM certificate, GuardDuty
+# since cloud #29/#30). External-access analyzers are free. Prowler:
+# accessanalyzer_enabled, us-east-1.
+resource "aws_accessanalyzer_analyzer" "org_external_global" {
+  provider      = aws.global
+  analyzer_name = "${module.cfg.org.name}-org-external-access"
+  type          = "ORGANIZATION"
+  tags          = module.cfg.tags
+}
+
 # Where Prowler writes its findings — from a cluster OIDC role or a GitHub
 # Actions job, either way no stored credential.
 resource "aws_s3_bucket" "prowler" {
