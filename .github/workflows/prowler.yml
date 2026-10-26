@@ -1,3 +1,4 @@
+---
 name: prowler
 
 # The daily Prowler scan (ADR-0005): CIS and AWS FSBP checks against
