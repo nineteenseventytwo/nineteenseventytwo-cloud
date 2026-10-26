@@ -51,7 +51,6 @@ output "cluster_role_arns" {
   value = {
     vault_unseal    = try(module.role_vault_unseal[0].arn, null)
     longhorn_backup = try(module.role_longhorn_backup[0].arn, null)
-    prowler         = try(module.role_prowler[0].arn, null)
   }
 }
 

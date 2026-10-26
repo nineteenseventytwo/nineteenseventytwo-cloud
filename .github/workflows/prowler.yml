@@ -55,9 +55,8 @@ jobs:
 
       # The image runs as uid 1000 and the runner's workspace belongs to a
       # different uid, so the output directory has to be writable by it.
-      # Arguments are the CronJob's, unchanged - see nineteenseventytwo-platform
-      # policy/README.md#prowler for why each one is there (the region filter
-      # in particular: without it Prowler scans every enabled region).
+      # prowler/README.md explains each argument - the region filter in
+      # particular: without it Prowler scans every enabled region.
       - name: Scan
         run: |
           mkdir -p findings && chmod 777 findings
