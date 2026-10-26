@@ -21,12 +21,6 @@ variable "publish_cluster_oidc" {
   }
 }
 
-variable "enable_prowler_role" {
-  description = "Create the cluster role for scheduled Prowler scans. Kept as its own flag rather than folded into publish_cluster_oidc, since the two roll out independently."
-  type        = bool
-  default     = true
-}
-
 variable "longhorn_backup_retention_days" {
   description = "How long Longhorn volume backups are kept. This is the one line item in the cost model with no natural ceiling."
   type        = number
