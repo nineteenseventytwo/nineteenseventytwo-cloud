@@ -77,6 +77,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Secrets block, at every severity (platform ADR-0019). The Trivy step
+      # below reports secrets too, but only to SARIF with exit-code 0 and a
+      # HIGH,CRITICAL filter - neither fails a PR on a leaked key.
+      - name: Trivy secret scan (blocking)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scanners: secret
+          exit-code: "1"
+          format: table
+
       # Checkov's skips are configured in .checkov.yaml, each with a written
       # reason. It is not soft-failed here: an IaC repo whose IaC scanner is
       # advisory is an IaC repo with no IaC scanner.
