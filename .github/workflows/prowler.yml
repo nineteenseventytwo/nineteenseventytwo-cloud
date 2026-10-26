@@ -9,6 +9,13 @@ name: prowler
 # NotReady. It scans AWS, not the cluster, so a hosted runner is the natural
 # home. arm64 so the image digest pinned below is the same one the CronJob ran.
 #
+# This repo is public, and so are its Actions logs and run summaries. The scan
+# output is therefore kept out of both: Prowler's console report (per-check
+# FAILs and severities) goes to a file inside the container that is never
+# printed, and the summary carries totals only. Which checks fail, on which
+# resources, is for the findings bucket in the security account - not for a
+# public page that maps this account's weak spots.
+#
 # gha-prowler (live/aws/platform-prod/prowler.tf) trusts only the aws-audit
 # environment, which is restricted to `main` and has no required reviewer: a
 # read-only scan that needs approving every morning stops being run. The apply
@@ -54,6 +61,10 @@ jobs:
       - name: Scan
         run: |
           mkdir -p findings && chmod 777 findings
+          # stdout/stderr to a file in the runner's temp dir, never the log.
+          # On failure only the last lines of Prowler's own errors are shown,
+          # filtered to drop its results table.
+          set +e
           docker run --rm \
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN \
             -e AWS_REGION -e AWS_DEFAULT_REGION \
@@ -65,11 +76,20 @@ jobs:
               --output-formats csv json-ocsf html \
               --output-bucket "$FINDINGS_BUCKET" \
               --ignore-exit-code-3 \
-              --mutelist-file /home/prowler/mutelist/mutelist.yaml
+              --mutelist-file /home/prowler/mutelist/mutelist.yaml \
+              > "$RUNNER_TEMP/prowler.log" 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::prowler exited $rc"
+            grep -iE "error|exception|traceback" "$RUNNER_TEMP/prowler.log" | grep -v "│" | tail -20
+            exit "$rc"
+          fi
+          echo "scan finished; findings uploaded to s3://$FINDINGS_BUCKET/findings/"
 
-      # Unmuted FAILs by severity, from the OCSF output. Muted findings carry
-      # status "Suppressed" and stay in the bucket's copy; they are decisions
-      # (prowler/mutelist.yaml), not news.
+      # Totals only - see the header for why nothing more specific is printed.
+      # Muted findings carry status "Suppressed" (prowler/mutelist.yaml); they
+      # are decisions, not news.
       - name: Summary
         if: always()
         run: |
@@ -88,13 +108,6 @@ jobs:
           print(f"{len(findings)} results, **{len(fails)} unmuted FAIL**, {muted} muted.\n")
           print("| Severity | FAIL |\n|---|---|")
           for sev in ("Critical", "High", "Medium", "Low", "Informational", "Unknown"):
-              if by_sev.get(sev):
-                  print(f"| {sev} | {by_sev[sev]} |")
-          if fails:
-              print("\n| Severity | Check | Resource |\n|---|---|---|")
-              order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
-              for f in sorted(fails, key=lambda f: order.get(f.get("severity"), 9))[:25]:
-                  check = f.get("metadata", {}).get("event_code", "?")
-                  res = (f.get("resources") or [{}])[0].get("uid", "?")
-                  print(f"| {f.get('severity')} | `{check}` | `{res}` |")
+              print(f"| {sev} | {by_sev.get(sev, 0)} |")
+          print("\nDetails: the HTML report in the security account's findings bucket.")
           PY
