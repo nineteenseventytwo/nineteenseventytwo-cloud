@@ -22,6 +22,15 @@ Mutelist:
     "972034964468":
       Checks:
         # ---- the cluster's public OIDC issuer bucket (cloud ADR-0006) ----
+        # ---- Access Analyzer in us-east-1 (cloud #32) ----
+        "accessanalyzer_enabled":
+          Regions: ["us-east-1"]
+          Resources: ["*"]
+          Description: >-
+            Covered by the org-wide external-access analyzer in us-east-1, which lives in the
+            security account (security/detection.tf) where this per-account check cannot see it.
+            Unused-access analysis is IAM-global and already runs in eu-west-2; a second one here
+            would only duplicate it, billed.
         "s3_bucket_public_access":
           Regions: ["*"]
           Resources: ["nineteenseventytwo-oidc-972034964468"]
