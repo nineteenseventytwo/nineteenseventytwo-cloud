@@ -1,0 +1,100 @@
+---
+name: prowler
+
+# The daily Prowler scan (ADR-0005): CIS and AWS FSBP checks against
+# platform-prod, findings to the security account's bucket.
+#
+# Here, not in the cluster: until 2026-10-26 it was a CronJob on the Pis, and
+# a scan peaks at 650-840Mi of real memory - enough to take a 4GB worker
+# NotReady. It scans AWS, not the cluster, so a hosted runner is the natural
+# home. arm64 so the image digest pinned below is the same one the CronJob ran.
+#
+# gha-prowler (live/aws/platform-prod/prowler.tf) trusts only the aws-audit
+# environment, which is restricted to `main` and has no required reviewer: a
+# read-only scan that needs approving every morning stops being run. The apply
+# roles stay behind aws-prod's reviewer.
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prowler
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04-arm
+    environment: aws-audit
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      # docker.io/prowlercloud/prowler:stable, arm64, 2026-09-01 - the image
+      # the in-cluster CronJob ran, so findings stay comparable across the move.
+      PROWLER_IMAGE: docker.io/prowlercloud/prowler@sha256:70a5166d19dcce8a0e6d37b8056412b804863dbd6a24e938fb8c8c7168510598
+      FINDINGS_BUCKET: nineteenseventytwo-prowler-517148962038
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: arn:aws:iam::972034964468:role/ci/gha-prowler
+          aws-region: eu-west-2
+
+      # The image runs as uid 1000 and the runner's workspace belongs to a
+      # different uid, so the output directory has to be writable by it.
+      # Arguments are the CronJob's, unchanged - see nineteenseventytwo-platform
+      # policy/README.md#prowler for why each one is there (the region filter
+      # in particular: without it Prowler scans every enabled region).
+      - name: Scan
+        run: |
+          mkdir -p findings && chmod 777 findings
+          docker run --rm \
+            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN \
+            -e AWS_REGION -e AWS_DEFAULT_REGION \
+            -v "$PWD/prowler:/home/prowler/mutelist:ro" \
+            -v "$PWD/findings:/home/prowler/findings" \
+            "$PROWLER_IMAGE" aws \
+              --region eu-west-2 us-east-1 \
+              --output-directory findings \
+              --output-formats csv json-ocsf html \
+              --output-bucket "$FINDINGS_BUCKET" \
+              --ignore-exit-code-3 \
+              --mutelist-file /home/prowler/mutelist/mutelist.yaml
+
+      # Unmuted FAILs by severity, from the OCSF output. Muted findings carry
+      # status "Suppressed" and stay in the bucket's copy; they are decisions
+      # (prowler/mutelist.yaml), not news.
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, json, collections
+          files = glob.glob("findings/**/*.ocsf.json", recursive=True)
+          if not files:
+              print("## Prowler\n\nNo OCSF output - the scan did not finish.")
+              raise SystemExit
+          findings = json.load(open(files[0]))
+          fails = [f for f in findings
+                   if f.get("status_code") == "FAIL" and f.get("status") != "Suppressed"]
+          muted = sum(1 for f in findings if f.get("status") == "Suppressed")
+          by_sev = collections.Counter(f.get("severity", "Unknown") for f in fails)
+          print("## Prowler\n")
+          print(f"{len(findings)} results, **{len(fails)} unmuted FAIL**, {muted} muted.\n")
+          print("| Severity | FAIL |\n|---|---|")
+          for sev in ("Critical", "High", "Medium", "Low", "Informational", "Unknown"):
+              if by_sev.get(sev):
+                  print(f"| {sev} | {by_sev[sev]} |")
+          if fails:
+              print("\n| Severity | Check | Resource |\n|---|---|---|")
+              order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+              for f in sorted(fails, key=lambda f: order.get(f.get("severity"), 9))[:25]:
+                  check = f.get("metadata", {}).get("event_code", "?")
+                  res = (f.get("resources") or [{}])[0].get("uid", "?")
+                  print(f"| {f.get('severity')} | `{check}` | `{res}` |")
+          PY
