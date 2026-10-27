@@ -31,8 +31,8 @@ roles included. The query does it in one run.
 |---|---|---|
 | `ANYONE` | 0 | |
 | `OUTSIDE-ORG` | 0 | |
-| `external-idp`, SAML | 15 | Identity Center's `AWSReservedSSO_*` roles, one per permission set per account. Trust is the account's own SSO SAML provider, conditioned on `saml:aud` |
-| `external-idp`, GitHub OIDC | 7 | `ci/gha-tf-plan` and `ci/gha-tf-apply` in each account, `ci/gha-prowler`, `ci/gha-site-deploy`. **All pinned**: `sub` names the repository by its immutable numeric ID (`nineteenseventytwo@314148597/nineteenseventytwo-cloud@1335676616`, not the renameable name), plus an environment (`aws-prod`, `aws-audit`) or `pull_request` for plans |
+| `external-idp`, SAML | 10 | Identity Center's `AWSReservedSSO_*` roles, one per permission set per account. Trust is the account's own SSO SAML provider, conditioned on `saml:aud` |
+| `external-idp`, GitHub OIDC | 12 | `ci/gha-tf-plan` and `ci/gha-tf-apply` in each of the five accounts, plus `ci/gha-prowler` and `ci/gha-site-deploy` in platform-prod. **All pinned**: `sub` names the repository by its immutable numeric ID (`nineteenseventytwo@314148597/nineteenseventytwo-cloud@1335676616`, not the renameable name), plus an environment (`aws-prod`, `aws-audit`) or `pull_request` for plans |
 | `external-idp`, cluster OIDC | 3 | `cluster/cluster-vault-unseal`, `-longhorn-backup`, `-findings-exporter`. Each pinned to exactly one `system:serviceaccount:<ns>:<name>` |
 | `in-org` | 4 | `OrganizationAccountAccessRole` in each member account, trusting the management account's root |
 
@@ -74,11 +74,26 @@ archives the two classes that are external by construction:
 - the JWKS bucket's public read, on that one bucket. This mirrors the
   GuardDuty filter beside it.
 
-The ten OIDC roles stay ACTIVE on purpose. Access Analyzer cannot tell a
-pinned trust from an unpinned one, so archiving them would also hide the
-unpinned trust that would matter. After the apply, the ACTIVE list is the ten
-deliberate CI and cluster roles. **A new external trust of any kind is an
-eleventh.**
+The fifteen OIDC roles (twelve GitHub, three cluster) stay ACTIVE on purpose.
+Access Analyzer cannot tell a pinned trust from an unpinned one, so archiving
+them would also hide the unpinned trust that would matter. **A new external
+trust of any kind is a sixteenth.**
+
+Archive rules apply only to findings created after the rule exists. The
+existing ones were archived once, by hand, after the apply. This is a write,
+so it needs an admin profile, and any future archive rule needs the same:
+
+```bash
+P=nineteenseventytwo-security-admin
+A=$(aws accessanalyzer list-analyzers --type ORGANIZATION --region <region> \
+      --profile $P --query 'analyzers[0].arn' --output text)
+aws accessanalyzer apply-archive-rule --analyzer-arn "$A" --rule-name <rule> \
+  --region <region> --profile $P
+```
+
+Result, 2026-10-27: ACTIVE went from 51 to 30, which is the fifteen OIDC roles
+in each region and nothing else. ARCHIVED is 11 in eu-west-2 (ten Identity
+Center roles and the JWKS bucket) and 10 in us-east-1.
 
 ## Re-running
 
