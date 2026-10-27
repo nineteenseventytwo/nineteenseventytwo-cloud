@@ -30,14 +30,24 @@ locals {
     # itself, so an apply can still manage a trail it is meant to manage.
     deny_security_service_tampering = [local.root_id]
 
-    # STAGED. Both of these can break a legitimate apply if a resource turns
-    # out to live somewhere unexpected. Widened to the Sandbox OU 2026-08-29
-    # after 11 days at the sandbox account alone with a clean CloudTrail
-    # (`cloudtrail lookup-events` for AccessDenied, 14-day lookback, empty).
-    # Next and last: [local.root_id], after the same check against this
-    # wider blast radius.
-    deny_regions_outside_allowlist = [local.ou_ids["Sandbox"]]
-    deny_expensive_resources       = [local.ou_ids["Sandbox"]]
+    # Root, 2026-10-27, the last step of sandbox account -> Sandbox OU ->
+    # root. Decided on evidence, as the platform's 07 plan asked, not on a
+    # quiet week: what the accounts these now reach (security, shared,
+    # platform-prod) actually call, checked against each policy.
+    #   - Regions: 90 days of CloudTrail outside eu-west-2/us-east-1. Callers
+    #     were AWS-internal or service-linked (SCPs do not apply), the
+    #     retired cluster-prowler role, SecurityAudit console browsing, and
+    #     gha-prowler's DescribeAddresses, ListAccelerators and
+    #     ListMultiRegionAccessPoints. Those three become expected AccessDenied
+    #     entries in each Prowler run; Prowler records them and carries on. No
+    #     Terraform apply and no cluster role made a non-exempt call there.
+    #   - Expensive resources: no stack outside sandbox defines a resource
+    #     type the policy denies, and 90 days of CloudTrail in both allowed
+    #     regions shows none of its 29 denied create/purchase actions.
+    # The management account is exempt from SCPs, so this cannot lock out
+    # the org-management apply that would detach them.
+    deny_regions_outside_allowlist = [local.root_id]
+    deny_expensive_resources       = [local.root_id]
 
     # Sandbox only, by definition.
     sandbox_extra_restrictions = [local.account_ids["sandbox"]]
