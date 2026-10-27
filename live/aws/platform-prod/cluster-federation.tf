@@ -100,3 +100,58 @@ module "role_longhorn_backup" {
 
   tags = module.cfg.tags
 }
+
+# The platform's findings exporter (nineteenseventytwo-platform
+# images/findings-exporter, 07 Phase 10.4) reads the newest Prowler report so
+# its counts can sit in one Grafana view with the cluster's own findings.
+# Read only, findings/ only. The bucket and its key are in the security
+# account, and both already admit read and decrypt from any principal in the
+# org (security/detection.tf, security/cloudtrail.tf): this role's own policy
+# is the half that decides, so it names exactly the bucket and prefix.
+data "aws_iam_policy_document" "findings_exporter" {
+  statement {
+    sid       = "ListFindings"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::${module.cfg.buckets.prowler}"]
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["findings/*"]
+    }
+  }
+
+  statement {
+    sid       = "ReadFindings"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["arn:aws:s3:::${module.cfg.buckets.prowler}/findings/*"]
+  }
+
+  # SSE-KMS with the security account's logs key. Same key-ID wildcard, and
+  # the same reasoning, as the Prowler role's write statement (prowler.tf).
+  statement {
+    sid       = "DecryptFindings"
+    effect    = "Allow"
+    actions   = ["kms:Decrypt"]
+    resources = ["arn:aws:kms:${module.cfg.regions.primary}:${module.cfg.account_ids["security"]}:key/*"]
+  }
+}
+
+module "role_findings_exporter" {
+  count  = var.publish_cluster_oidc ? 1 : 0
+  source = "../../../modules/aws-cluster-oidc-role"
+
+  name              = "cluster-findings-exporter"
+  description       = "Platform findings exporter: reads the newest Prowler report from the security account's findings bucket. Nothing else."
+  oidc_provider_arn = local.cluster_oidc_provider_arn
+  issuer_url        = module.cfg.cluster.oidc_issuer
+  audience          = module.cfg.cluster.audience
+  policy_json       = data.aws_iam_policy_document.findings_exporter.json
+
+  service_accounts = [
+    { namespace = "findings", name = "findings-exporter" },
+  ]
+
+  tags = module.cfg.tags
+}
