@@ -183,6 +183,67 @@ resource "aws_accessanalyzer_analyzer" "org_external_global" {
   tags          = module.cfg.tags
 }
 
+# ---- Access Analyzer archive rules ------------------------------------------
+# The asset graph's first query (asset-graph/, docs/asset-graph/0001) found
+# every ACTIVE external-access finding expected: 15 Identity Center roles, 10
+# OIDC roles (GitHub, the cluster), and the public JWKS bucket. Fifty-one
+# expected findings is a list nobody reads, and a new one would land in it
+# looking identical. Same reasoning, and the same scoping, as the GuardDuty
+# filter above.
+#
+# Archived: what is external by construction.
+#   - roles whose trust is an Identity Center SAML provider. Identity Center
+#     creates and owns them (AWSReservedSSO_*); this repo's permission sets
+#     are their whole configuration.
+#   - the JWKS bucket's public read, on that one bucket.
+# Left ACTIVE on purpose: the GitHub and cluster OIDC roles. Access Analyzer
+# cannot see whether a trust pins its subject, so archiving them would also
+# hide an unpinned one - the one that would matter. A new external trust of
+# any kind therefore arrives as a new ACTIVE finding.
+resource "aws_accessanalyzer_archive_rule" "sso_roles" {
+  analyzer_name = aws_accessanalyzer_analyzer.org_external.analyzer_name
+  rule_name     = "identity-center-roles"
+
+  filter {
+    criteria = "resourceType"
+    eq       = ["AWS::IAM::Role"]
+  }
+  filter {
+    criteria = "principal.Federated"
+    contains = [":saml-provider/AWSSSO_"]
+  }
+}
+
+resource "aws_accessanalyzer_archive_rule" "sso_roles_global" {
+  provider      = aws.global
+  analyzer_name = aws_accessanalyzer_analyzer.org_external_global.analyzer_name
+  rule_name     = "identity-center-roles"
+
+  filter {
+    criteria = "resourceType"
+    eq       = ["AWS::IAM::Role"]
+  }
+  filter {
+    criteria = "principal.Federated"
+    contains = [":saml-provider/AWSSSO_"]
+  }
+}
+
+# The bucket lives in eu-west-2, so only that analyzer reports it.
+resource "aws_accessanalyzer_archive_rule" "jwks_bucket_public" {
+  analyzer_name = aws_accessanalyzer_analyzer.org_external.analyzer_name
+  rule_name     = "jwks-bucket-public-by-design"
+
+  filter {
+    criteria = "resource"
+    eq       = ["arn:aws:s3:::${module.cfg.buckets.jwks}"]
+  }
+  filter {
+    criteria = "isPublic"
+    eq       = ["true"]
+  }
+}
+
 # Where Prowler writes its findings — from a cluster OIDC role or a GitHub
 # Actions job, either way no stored credential.
 resource "aws_s3_bucket" "prowler" {
