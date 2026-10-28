@@ -1,0 +1,50 @@
+---
+name: cost-report
+
+# Monday's AWS cost summary in Slack: the past week against the one before, by
+# account and by service, month to date, the forecast, and each budget.
+# Threshold alerts still go to email (org-management/budgets.tf); this is the
+# routine look that stops a slow drift from being noticed only at 100%.
+#
+# gha-cost-report (live/aws/org-management/cost-report.tf) trusts only the
+# aws-audit environment. The figures go to Slack, never to this public repo's
+# logs: scripts/cost-report.py prints only the message, and it is piped
+# straight to curl.
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cost-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-24.04-arm
+    environment: aws-audit
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Cost Explorer and Budgets are served from us-east-1.
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: arn:aws:iam::805982517487:role/ci/gha-cost-report
+          aws-region: us-east-1
+
+      - name: Post the report to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "$SLACK_WEBHOOK_URL" ] || { echo "::error::SLACK_WEBHOOK_URL is not available to this repo"; exit 1; }
+          python3 scripts/cost-report.py \
+            | curl -sf -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL" >/dev/null
+          echo "posted"
