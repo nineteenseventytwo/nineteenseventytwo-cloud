@@ -104,6 +104,30 @@ data "aws_iam_policy_document" "apply_security" {
     ]
     resources = ["*"]
   }
+
+  # notifications.tf: the Slack webhook is read from SSM, and an EventBridge
+  # connection keeps its auth in a Secrets Manager secret it creates as the
+  # caller. Both scoped to just those names.
+  statement {
+    sid       = "SlackWebhookParameter"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:*:*:parameter/security/slack-alerts-webhook-url"]
+  }
+
+  statement {
+    sid    = "EventBridgeConnectionSecrets"
+    effect = "Allow"
+    actions = [
+      "secretsmanager:CreateSecret",
+      "secretsmanager:UpdateSecret",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:DeleteSecret",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:PutSecretValue",
+    ]
+    resources = ["arn:aws:secretsmanager:*:*:secret:events!connection/*"]
+  }
 }
 
 data "aws_iam_policy_document" "apply_shared" {
