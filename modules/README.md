@@ -14,3 +14,4 @@ build if one appears.
 | [`aws-cluster-oidc-role/`](aws-cluster-oidc-role/) | platform-prod | IRSA-style role for one on-prem service account |
 | [`aws-account-baseline/`](aws-account-baseline/) | every stack | The floor: account alias, public access block, EBS encryption, alternate contacts, unused-access analyzer |
 | [`aws-org-policy/`](aws-org-policy/) | org-management | One organisation policy plus its staged attachment list |
+| [`aws-eventbridge-slack/`](aws-eventbridge-slack/) | security | EventBridge rules posting to a Slack webhook through an API destination; no code, one instance per region |

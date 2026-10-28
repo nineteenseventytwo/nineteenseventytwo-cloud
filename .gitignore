@@ -1,6 +1,9 @@
 # Terraform
 .terraform/
 .terraform.lock.hcl.bak
+# Lock files belong to root stacks. lint-validate inits each module, which
+# writes one there that nothing reads.
+modules/*/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan
