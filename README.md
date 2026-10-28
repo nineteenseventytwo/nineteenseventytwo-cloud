@@ -79,6 +79,9 @@ modules/      local modules only. No registry sources.
 live/aws/     one stack per account. Applied by CI.
 policies/     SCP / RCP / declarative JSON, attached by live/aws/org-management.
 docs/         guides, the landing zone plan, decision records.
+prowler/      the daily Prowler scan's mutelist and notes (prowler.yml).
+asset-graph/  Steampipe over every account, read-only, from a workstation.
+scripts/      code the workflows run: cost-report.py (cost-report.yml).
 ```
 
 Everyday commands:
