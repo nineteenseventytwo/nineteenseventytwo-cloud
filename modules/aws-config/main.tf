@@ -1,11 +1,17 @@
 # Reads config/aws.json and hands it back as typed locals.
 #
-# Every stack starts with `module "cfg" { source = "../../../modules/aws-config" }`
+# Every stack starts with a `module "cfg"` block pointing at this directory,
 # so that "which account is platform-prod" has exactly one answer, shared with
 # the GitHub workflows, which read the same file with jq. The alternative —
 # a variables.tf per stack — drifts the moment one of the six copies is edited.
 #
 # This module creates nothing. It is a typed read of a committed file.
+#
+# Don't write a literal module source line in a comment here. Dependabot
+# finds local modules by matching that text, comments included; a source
+# pointing at this directory, written inside this directory, made it fetch
+# itself until "stack level too deep". The monthly terraform update failed
+# that way on every run from 2026-08-18 to 2026-11-01.
 
 terraform {
   required_version = ">= 1.15.8"
