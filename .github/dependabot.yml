@@ -10,6 +10,7 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    cooldown: {default-days: 14}
     commit-message:
       prefix: "ci"
 
@@ -31,5 +32,13 @@ updates:
       - "/modules/aws-tf-backend"
     schedule:
       interval: monthly
+    # The two-week rule, enforced here rather than by remembering it: the
+    # first run that worked (2026-11-14, after #46) proposed hashicorp/aws
+    # 6.72.0, ten days old.
+    cooldown: {default-days: 14}
+    # One PR for all fourteen directories. Without it every provider bump is
+    # seven PRs, each with its own apply, that only make sense together.
+    groups:
+      terraform: {patterns: ["*"]}
     commit-message:
       prefix: "deps"
